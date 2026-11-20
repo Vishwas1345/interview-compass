@@ -20,9 +20,23 @@ import { generateQuestions, createGapGenerator } from "./generation/questions.js
 import { makeFlashcards } from "./generation/flashcards.js";
 import { closeGaps } from "./coverage/coverage.js";
 import { allocateSchedule } from "./schedule/allocate.js";
+import { createLlmClient } from "../llm/client.js";
+import { createFetcher } from "./retrieval/fetch-page.js";
 
 // A posting with this many requirements or fewer gets a "this kit is short" note.
 export const THIN_REQUIREMENT_COUNT = 3;
+
+// The real dependencies from config, shared by the batch command and the API so
+// both run the same code path. Build once per process: the LLM client holds the
+// per-model rate budget, which must be shared by every run.
+export function createPipelineDeps(config, { log = () => {} } = {}) {
+  return {
+    llm: createLlmClient({ baseUrl: config.llm.baseUrl, apiKey: config.llm.apiKey, log }),
+    models: { strong: config.llm.model, fast: config.llm.fastModel },
+    fetcher: createFetcher({ allowPrivate: config.allowPrivateUrls }),
+    tavilyApiKey: config.tavilyApiKey,
+  };
+}
 
 // input: { company_url, jd, days }
 // deps:  { llm, models: { strong, fast }, fetcher, tavilyApiKey, searchFetch, now, onProgress }

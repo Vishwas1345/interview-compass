@@ -1,0 +1,18 @@
+Frontend Engineer (Mid-level)
+
+Quietly is hiring a frontend engineer to work on our scheduling dashboard.
+
+What you'll do
+- Build and maintain features in our React dashboard
+- Work with designers to turn mockups into accessible components
+- Improve page load performance
+
+Requirements
+- 3+ years building production web apps with React
+- Solid understanding of HTML, CSS and accessibility (WCAG)
+- Experience writing tests with Jest or Testing Library
+- Comfortable giving and receiving code review feedback
+
+Nice to have
+- Experience with Next.js
+- Some exposure to design systems

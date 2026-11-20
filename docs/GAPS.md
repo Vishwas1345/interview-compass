@@ -6,7 +6,7 @@ Open questions, known limitations, and requirements not yet covered. Add an entr
 
 - ~~**G1 — Language.**~~ Closed by D3: JavaScript.
 - ~~**G2 — LLM provider and model.**~~ Closed by D5: Groq, gpt-oss-120b (strong) + gpt-oss-20b (fast).
-- **G8 — Batch token budget.** Groq's free tier is ~8K tokens/minute per model; an estimated ~150K-token 5-case run would take ~19 minutes on one model; two models (D5) bring it to an estimated ~9–10 minutes. Verify with a timed run; add `qwen/qwen3.8-27b` as a third budget only if needed.
+- ~~**G8 — Batch token budget.**~~ Closed by a timed run (2026-11-20): the 5 fixture cases (full posting, stub, unreachable site, injection, 60 days) finished 5/5 ok in 377 s, about 44K tokens in total (≈29K strong, ≈15K fast). Estimate was ~150K; real use is ~9K per case. No third model needed.
 - ~~**G3 — Public-discussion search source.**~~ Closed by D7: Tavily (optional key) + Hacker News.
 - ~~**G4 — Scraping approach.**~~ Closed by D6: `fetch` + cheerio, links scored in code.
 - ~~**G5 — Repository layout.**~~ Closed by D2: npm workspaces `web/`, `api/`, `shared/`.
