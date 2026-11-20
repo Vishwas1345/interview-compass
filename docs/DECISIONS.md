@@ -75,3 +75,31 @@ One entry per decision, newest last. Each says what we chose, what else we consi
 - split steps across two models (above), since limits are per model.
 
 The OpenAI-compatible client keeps a switch to Gemini (or any compatible provider) a config change, not a code change.
+
+---
+
+## D6 — Retrieval: `fetch` + cheerio, links ranked by code
+
+**Date:** 2026-11-20
+
+**Decision:**
+- Fetch pages with Node's built-in `fetch`; parse and clean HTML with `cheerio` (strip script, style, nav, footer; keep main text).
+- Crawl: read `robots.txt` (`robots-parser`) and `sitemap.xml` if present, collect same-site links from the homepage, **score each link in code** by keywords in its path and anchor text (hiring: careers, jobs, hiring, interview, handbook, join; about: about, company, team, engineering, culture), fetch the top ~6–8 at most 2 levels deep. Relative links resolved against the page URL; no host assumptions.
+- Limits: ~1 request/second per host, 10 s timeout, retry with backoff, `text/html` only, ~2 MB max, cleaned text capped per page before it reaches the LLM.
+- URL safety: reject private and loopback addresses when `ALLOW_PRIVATE_URLS` is false; it defaults to true unless `NODE_ENV=production`, so the CLI and local dev can reach the grader's `localhost` sites while the deployed API cannot.
+
+**Considered:** a headless browser (Playwright) to render JavaScript-only sites; asking the LLM to rank links.
+
+**Why:** a headless browser adds a ~150 MB browser download (breaks "no setup beyond install" on a clean clone) and strains free hosting memory; careers and about pages are almost always server-rendered. Ranking links in code costs no tokens (Groq tokens are the scarcest resource, D5), gives the same answer every run, and is testable.
+
+---
+
+## D7 — Public discussion: Tavily + Hacker News, honest when empty
+
+**Date:** 2026-11-20
+
+**Decision:** search for "<company name> interview process / experience" using Tavily when `TAVILY_API_KEY` is set, and Hacker News (Algolia API, no key) always. The search term is the company name taken from the homepage title, not the domain. Search is skipped for private hosts, with the reason recorded. If nothing is found, the kit says so plainly.
+
+**Considered:** Brave Search API (now needs a card), scraping DuckDuckGo/Google result pages (captchas, against their terms).
+
+**Why:** Tavily has a no-card free plan (1,000 searches/month) and returns cleaned text built for LLMs; HN search needs no key, so a clean clone without a Tavily key still searches somewhere. Both outputs are untrusted text, capped and delimited like crawled pages.
