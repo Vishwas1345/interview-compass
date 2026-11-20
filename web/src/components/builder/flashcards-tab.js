@@ -67,8 +67,9 @@ export function FlashcardsTab({ ctx }) {
               const last = practice[f.id];
               return (
                 <li key={f.id} className="group -mx-3 border-b border-rule px-3 py-5 transition-colors hover:bg-hover/50 focus-within:bg-hover/50">
-                  <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-6 gap-y-3 sm:grid-cols-[2.5rem_minmax(0,0.9fr)_minmax(0,1.1fr)_auto]">
-                    <span className="pt-1.5 font-mono text-xs tabular-nums text-faint">{String(index + 1).padStart(2, "0")}</span>
+                  {/* items-baseline: the number, the serif front and the back share a first baseline. */}
+                  <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-baseline gap-x-6 gap-y-3 sm:grid-cols-[2.5rem_minmax(0,0.9fr)_minmax(0,1.1fr)_auto]">
+                    <span className="font-mono text-xs tabular-nums text-faint">{String(index + 1).padStart(2, "0")}</span>
                     <InlineEdit
                       label="Front"
                       value={f.front}
@@ -82,10 +83,10 @@ export function FlashcardsTab({ ctx }) {
                       value={f.back}
                       maxLength={500}
                       onSave={(back) => act({ type: "updateFlashcard", id: f.id, fields: { back } })}
-                      className="col-start-2 -mx-2 sm:col-start-auto"
+                      className="col-start-2 -mx-2 sm:col-start-3"
                       textClassName="text-sm leading-relaxed text-ink-soft"
                     />
-                    <div className="col-start-2 flex items-start gap-0.5 transition-opacity sm:col-start-auto sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                    <div className="col-start-2 flex gap-0.5 self-start transition-opacity sm:col-start-4 sm:-mt-1 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                       <IconButton label={`Move card ${index + 1} up`} disabled={index === 0} onClick={() => move(f.id, -1)}>
                         <IconArrowUp />
                       </IconButton>
@@ -99,23 +100,24 @@ export function FlashcardsTab({ ctx }) {
                         <IconTrash />
                       </IconButton>
                     </div>
-                    <div className="col-start-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted sm:col-span-3">
+                    {/* col-[2/-1]: a col-span-* class would reset the start column to 1. */}
+                    <div className="col-[2/-1] flex flex-wrap items-baseline gap-x-2 gap-y-1 px-0 text-xs text-muted">
                       <ItemState state={f.state} origin={f.origin} />
-                      {f.requirement_ids.map((id) => {
-                        const r = kit.role.requirements.find((x) => x.id === id);
-                        return r ? (
-                          <span key={id} className={r.priority === "must" ? "text-ink-soft" : "text-faint"}>
+                      {f.requirement_ids
+                        .map((id) => kit.role.requirements.find((x) => x.id === id))
+                        .filter(Boolean)
+                        .map((r) => (
+                          <span key={r.id} className={`before:mr-2 before:text-rule-strong before:content-['·'] ${r.priority === "must" ? "text-ink-soft" : "text-faint"}`}>
                             {r.text}
                           </span>
-                        ) : null;
-                      })}
+                        ))}
                       {last && (
                         <span className={`ml-auto ${last.confidence === CONFIDENCE.GOT_IT ? "text-accent" : last.confidence === CONFIDENCE.AGAIN ? "text-warn" : ""}`}>
                           Last practised: {CONFIDENCE_LABELS[last.confidence]}
                         </span>
                       )}
                     </div>
-                    <div className="col-start-2 sm:col-span-3">
+                    <div className="col-[2/-1] -ml-2">
                       <RequirementPicker
                         requirements={kit.role.requirements}
                         selected={f.requirement_ids}
