@@ -66,6 +66,13 @@ test("questions get the category from code, valid ids only, and clamped difficul
   assert.equal(questions[0].state, "generated");
 });
 
+test("a question claiming more than three requirements keeps only the first three", async () => {
+  const many = ["r1", "r2", "r3", "r4"].map((id) => ({ id, text: id, kind: "technical", priority: "must" }));
+  const llm = fakeLlm([{ prompt: "Everything?", answer_outline: "", difficulty: 2, requirement_ids: ["r1", "r2", "r3", "r4"] }]);
+  const { questions } = await generateQuestions({ category: "technical", requirements: many, count: 1, context, llm, model: "m" });
+  assert.deepEqual(questions[0].requirement_ids, ["r1", "r2", "r3"]);
+});
+
 test("each category gets its own instructions", async () => {
   const llm = fakeLlm([]);
   await generateQuestions({ category: "technical", requirements, count: 3, context, llm, model: "m" });

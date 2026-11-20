@@ -19,8 +19,12 @@ const schema = z.object({
     .default([]),
 });
 
+// More ids than this means the question claims coverage it cannot deliver.
+export const MAX_IDS_PER_QUESTION = 3;
+
 const COMMON = `Return JSON: { "questions": [{ "prompt", "answer_outline", "difficulty", "requirement_ids" }] }
-- "requirement_ids": the ids (from the list given) that the question genuinely tests. Use only listed ids.
+- "requirement_ids": the ids (from the list given) that the question genuinely tests: an id belongs only if a good answer would show the interviewer that requirement. At most ${MAX_IDS_PER_QUESTION}, most relevant first. Use only listed ids.
+- An experience-length requirement ("5+ years of …") is tested by a question about the depth of that experience, not by tagging unrelated questions with it.
 - "answer_outline": 3-5 short points a strong answer covers, separated by "; ".
 - "difficulty": 1 (fundamentals), 2 (applied), 3 (deep, trade-offs, ambiguity). Match the role's seniority.
 - Questions must be specific to this role and its requirements, never generic filler. No duplicates of each other or of the "already in the kit" list.`;
@@ -59,7 +63,7 @@ export async function generateQuestions({ category, requirements, count, context
 
   const questions = data.questions
     .map((q) => ({
-      requirement_ids: [...new Set(q.requirement_ids)].filter((id) => allowed.has(id)),
+      requirement_ids: [...new Set(q.requirement_ids)].filter((id) => allowed.has(id)).slice(0, MAX_IDS_PER_QUESTION),
       category,
       prompt: q.prompt.trim(),
       answer_outline: q.answer_outline.trim(),
