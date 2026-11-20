@@ -129,3 +129,13 @@ test("resuming after extraction and research skips them and continues", async ()
   assert.deepEqual(events.filter((e) => e.status === "reused").map((e) => e.step), ["extract requirements", "research company site"]);
   assert.equal(kit.role.requirements.length, 3);
 });
+
+test("an address typed without a scheme falls back to http when https cannot connect", async () => {
+  const llm = fakeLlm();
+  const bare = `${fixtures.origin.replace(/^http:\/\//, "")}/acme/`; // "localhost:PORT/acme/"
+  const { kit } = await runPipeline({ company_url: bare, jd: JD, days: 3 }, deps(llm));
+  assert.ok(kit.source.pages_used.length > 1, "the http site was crawled");
+  assert.ok(kit.research.hiring_page_found);
+  assert.ok(!kit.research.notes.some((n) => /could not be reached/.test(n)));
+  assert.ok(kit.research.pages_tried.some((p) => p.status === "skipped" && p.url.startsWith("https://")), "the failed https try is recorded");
+});

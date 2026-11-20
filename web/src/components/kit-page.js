@@ -35,7 +35,7 @@ function KitPageInner() {
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-2xl font-semibold tracking-tight">{kit.role || "New kit"}</h1>
+          <h1 className="truncate text-2xl font-semibold tracking-tight">{kit.role || (kit.status === "ready" ? "Untitled role" : "New kit")}</h1>
           <p className="text-sm text-zinc-600">
             {kit.company} · {kit.days} {kit.days === 1 ? "day" : "days"}
           </p>

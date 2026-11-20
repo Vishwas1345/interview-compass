@@ -234,7 +234,18 @@ function checkInput(input) {
   return { jd, days, companyUrl: typeof input.company_url === "string" ? input.company_url.trim() : "" };
 }
 
+// An address typed without a scheme ("acme.com", "localhost:8099/acme/") is tried
+// as https first; if the site cannot be reached that way, as plain http before
+// giving up (seen live: an http-only site failed with an SSL error).
 async function crawlSafely(companyUrl, { fetcher, log }) {
+  const first = await crawlOnce(companyUrl, { fetcher, log });
+  if (first.reachable || /^[a-z][a-z0-9+.-]*:\/\//i.test(companyUrl) || first.skipped.length === 0) return first;
+  log(`crawl: https failed (${first.skipped[0].reason}); trying http://`);
+  const second = await crawlOnce(`http://${companyUrl}`, { fetcher, log });
+  return { ...second, skipped: [...first.skipped, ...second.skipped] };
+}
+
+async function crawlOnce(companyUrl, { fetcher, log }) {
   try {
     return await crawlCompany(companyUrl, { fetcher, robots: createRobots(fetcher), log });
   } catch (error) {
