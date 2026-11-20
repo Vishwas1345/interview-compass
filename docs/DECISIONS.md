@@ -49,3 +49,29 @@ One entry per decision, newest last. Each says what we chose, what else we consi
 **Considered:** Jest or Vitest, `dotenv`, `yargs`/`commander`.
 
 **Why:** each built-in covers our need completely, with zero install weight and nothing extra to justify. `--env-file-if-exists` (Node ≥ 22.9) lets the grader run without a `.env` file when no key is needed.
+
+---
+
+## D5 — Groq as the LLM provider, behind an OpenAI-compatible client
+
+**Date:** 2026-11-20
+
+**Decision:** Groq's free tier, called through the OpenAI-compatible chat API. Provider is set entirely by env: `LLM_BASE_URL`, `LLM_API_KEY`, and two models:
+- `LLM_MODEL` = `openai/gpt-oss-120b` — requirement extraction, question generation, gap pass (the quality-critical steps; extraction alone is 20 points).
+- `LLM_MODEL_FAST` = `openai/gpt-oss-20b` — company brief and flashcards (largest inputs, easier summarising work).
+
+**Live limits (read from `x-ratelimit-*` response headers, 2026-11-20):** each chat model has its own 8,000 tokens/minute and 1,000 requests/day. Two models therefore give ~16K tokens/minute combined. Tokens/day is not reported in headers (blogs say ~200K per model). `qwen/qwen3.8-27b` has the same limits and is held in reserve as a third budget, added only if a timed batch run needs it.
+
+**Gotcha:** gpt-oss models are reasoning models and their reasoning tokens count against tokens/minute. Send `reasoning_effort: "low"` on calls that don't need deep reasoning.
+
+**Considered:**
+- Gemini Flash-Lite: far higher tokens-per-minute (reported ~250K), but only ~15 requests/minute and Google has cut free limits before (Flash fell to ~20 requests/day).
+- OpenRouter free models: ~50 requests/day without credits, about one batch run.
+
+**Why:** Vishwas's call. Groq is the fastest inference available, which makes the "watch it generate" UI feel quick, and has generous request limits (~30/minute, ~1,000/day). Its weak spot is tokens: ~8K tokens/minute and ~200K tokens/day **per model** (reported, Nov 2026), against an estimated ~150K tokens for a 5-case batch. The design must therefore keep token use lean and respect the per-minute budget:
+- cap cleaned page text per page; send only what each step needs;
+- a client-side limiter that budgets tokens per minute, not just requests;
+- retry 429/5xx with exponential backoff + jitter, honouring `Retry-After`;
+- split steps across two models (above), since limits are per model.
+
+The OpenAI-compatible client keeps a switch to Gemini (or any compatible provider) a config change, not a code change.
