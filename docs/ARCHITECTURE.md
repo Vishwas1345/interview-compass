@@ -91,7 +91,20 @@ Middleware order: JSON body (200 KB) → JSON-only mutations → `requireUser` o
 
 ## Frontend
 
-_Pending._
+Next.js 16 App Router (`web/src/app`), JavaScript, Tailwind 4, no component or state library. `cacheComponents` is on, so page files are thin server components that wrap one client component in `<Suspense>` (required for `useParams` / `useSearchParams` under prerendering); nothing in the root layout reads the URL, or every dynamic route would fail its prerender.
+
+| Route | Screen |
+|---|---|
+| `/` | landing |
+| `/login`, `/register` | one `AuthForm`; returns to `?next=` (same-site paths only); `?expired=1` shows "your session ended" |
+| `/kits` | kit list: loading skeleton, empty state, error with retry, delete with confirmation |
+| `/kits/new` | create form: field checks, draft kept in `sessionStorage`, duplicate dialog (open / create anyway / change days) |
+| `/kits/[id]` | while generating: step-by-step progress (polled every 2 s), resume/try again; when ready: the builder (tabs: Questions, Requirements & coverage, Flashcards, Schedule, Company brief, Research) |
+| `/kits/[id]/practice` | deck choice, one card at a time, confidence marks, answer coach, progress per requirement |
+
+**Data flow.** `lib/api.js` is the only fetch: same-origin `/api/*`, errors become `ApiError { status, code, message, details }`, a 401 sends the user to sign in. `lib/use-kit.js` loads a kit, polls while the server works on it, and runs builder operations through a queue: each is previewed at once with `lib/local-ops.js`, sent with the current version, rolled back on failure, and replaced by the latest kit on `VERSION_CONFLICT`. A parity test (`api/test/preview-parity.test.js`) keeps the preview identical to the server's `applyOp`. Practice ordering and progress come from `shared/src/practice.js`, the same code the API tests.
+
+**Interaction.** Inline edit (Enter or blur saves, Shift+Enter new line, Escape cancels); delete hides at once with a 5-second Undo; regeneration shows a banner while running and a summary when done; tabs follow the WAI-ARIA pattern (arrow keys) and become a select on phones; dialogs are native `<dialog>`; every control has a visible focus outline; practice shortcuts: Space reveals, 1/2/3 mark, ←/→ move.
 
 ## Rate limiting and failure handling
 

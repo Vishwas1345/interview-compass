@@ -56,10 +56,12 @@ export function useKit(id) {
     return () => clearInterval(timer);
   }, [busy, load]);
 
-  // Replace the kit with a server answer (e.g. after resume or regenerate).
+  // Replace the kit with a server answer (after resume or regenerate), or update it
+  // with a function of the latest kit (practice marks made in quick succession).
   const replace = useCallback((next) => {
-    kitRef.current = next;
-    setKit(next);
+    const value = typeof next === "function" ? next(kitRef.current) : next;
+    kitRef.current = value;
+    setKit(value);
   }, []);
 
   // → resolves with the saved kit, or rejects with the ApiError (after rollback).
