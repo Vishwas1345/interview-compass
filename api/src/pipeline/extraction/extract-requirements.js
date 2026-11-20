@@ -6,7 +6,7 @@
 
 import { z } from "zod";
 import { REQUIREMENT_KINDS, REQUIREMENT_PRIORITIES } from "@interview-compass/shared";
-import { wrapUntrusted, UNTRUSTED_RULE } from "../../llm/untrusted.js";
+import { wrapUntrusted, UNTRUSTED_RULE } from "../../lib/llm/untrusted.js";
 
 export const MAX_JD_CHARS = 20_000;
 

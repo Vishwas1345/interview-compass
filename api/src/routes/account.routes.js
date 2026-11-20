@@ -3,12 +3,12 @@
 
 import { Router } from "express";
 import { z } from "zod";
-import { HttpError } from "../http/errors.js";
-import { sessionCookieOptions } from "../http/middleware.js";
-import { hashPassword, verifyPassword } from "../auth/passwords.js";
-import { SESSION_COOKIE } from "../auth/sessions.js";
-import { publicUser } from "../auth/users.js";
-import { PASSWORD_MIN } from "./auth.js";
+import { HttpError } from "../middlewares/error-handler.js";
+import { sessionCookieOptions } from "../middlewares/auth.middleware.js";
+import { hashPassword, verifyPassword } from "../services/password.service.js";
+import { SESSION_COOKIE } from "../services/session.service.js";
+import { publicUser } from "../views/user.view.js";
+import { PASSWORD_MIN } from "./auth.routes.js";
 
 const password = z.string().min(1, "Enter your current password.").max(200);
 const emailBody = z.object({ email: z.string().trim().toLowerCase().pipe(z.email("Enter a valid email address.").max(254)), currentPassword: password });

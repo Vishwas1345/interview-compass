@@ -3,7 +3,7 @@
 // the screen jumps when the reply lands: this test keeps them identical.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyOp } from "../src/kits/ops.js";
+import { applyOp } from "../src/services/kit-ops.service.js";
 import { localApply } from "../../web/src/lib/local-ops.js";
 import { allocateSchedule } from "../src/pipeline/schedule/allocate.js";
 

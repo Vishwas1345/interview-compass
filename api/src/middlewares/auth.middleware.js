@@ -1,5 +1,5 @@
-import { HttpError } from "./errors.js";
-import { SESSION_COOKIE } from "../auth/sessions.js";
+import { HttpError } from "./error-handler.js";
+import { SESSION_COOKIE } from "../services/session.service.js";
 
 // Mutations must be JSON. A cross-site HTML form can only send form encodings
 // without a CORS preflight, so this (with SameSite=Lax cookies) blocks CSRF.

@@ -3,7 +3,7 @@
 // AI's untouched ones. Called on a fresh read of the document, so edits made while
 // the model was working are part of what gets protected.
 
-import { pruneSchedule } from "./ops.js";
+import { pruneSchedule } from "./kit-ops.service.js";
 
 export const isProtected = (item) => (item.state ?? "generated") !== "generated";
 

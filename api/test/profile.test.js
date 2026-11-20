@@ -1,7 +1,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { startTestDb, startTestApp, browser } from "./helpers/app.js";
-import { detectFileType, safeFilename } from "../src/profile/files.js";
+import { detectFileType, safeFilename } from "../src/services/file.service.js";
 
 let testDb, app;
 before(async () => {

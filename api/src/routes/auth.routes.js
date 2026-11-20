@@ -3,11 +3,11 @@
 
 import { Router } from "express";
 import { z } from "zod";
-import { HttpError } from "../http/errors.js";
-import { requireUser, readCookie, sessionCookieOptions } from "../http/middleware.js";
-import { hashPassword, verifyPassword, burnPasswordCheck } from "../auth/passwords.js";
-import { SESSION_COOKIE } from "../auth/sessions.js";
-import { publicUser } from "../auth/users.js";
+import { HttpError } from "../middlewares/error-handler.js";
+import { requireUser, readCookie, sessionCookieOptions } from "../middlewares/auth.middleware.js";
+import { hashPassword, verifyPassword, burnPasswordCheck } from "../services/password.service.js";
+import { SESSION_COOKIE } from "../services/session.service.js";
+import { publicUser } from "../views/user.view.js";
 
 export const PASSWORD_MIN = 8;
 const PASSWORD_MAX = 200; // scrypt cost grows with input; a cap stops oversized inputs

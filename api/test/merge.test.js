@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mergeCategory, mergeBrief } from "../src/kits/merge.js";
+import { mergeCategory, mergeBrief } from "../src/services/kit-merge.service.js";
 
 const q = (id, category, state = "generated", origin = "ai") => ({ id, category, state, origin, prompt: `P ${id}`, answer_outline: "", difficulty: 2, requirement_ids: ["r1"] });
 const fresh = (n) => Array.from({ length: n }, (_, i) => ({ prompt: `New ${i}`, answer_outline: "", difficulty: 2, requirement_ids: ["r1"] }));

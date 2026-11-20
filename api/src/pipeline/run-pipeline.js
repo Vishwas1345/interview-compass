@@ -20,7 +20,7 @@ import { generateQuestions, createGapGenerator } from "./generation/questions.js
 import { makeFlashcards } from "./generation/flashcards.js";
 import { closeGaps } from "./coverage/coverage.js";
 import { allocateSchedule } from "./schedule/allocate.js";
-import { createLlmClient } from "../llm/client.js";
+import { createLlmClient } from "../lib/llm/client.js";
 import { createFetcher } from "./retrieval/fetch-page.js";
 
 // A posting with this many requirements or fewer gets a "this kit is short" note.

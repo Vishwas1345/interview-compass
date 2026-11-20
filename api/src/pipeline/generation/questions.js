@@ -4,7 +4,7 @@
 // The category comes from code; the model never chooses it.
 
 import { z } from "zod";
-import { wrapUntrusted, UNTRUSTED_RULE } from "../../llm/untrusted.js";
+import { wrapUntrusted, UNTRUSTED_RULE } from "../../lib/llm/untrusted.js";
 
 const schema = z.object({
   questions: z

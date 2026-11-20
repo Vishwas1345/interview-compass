@@ -4,7 +4,7 @@
 
 import * as cheerio from "cheerio";
 import { assertUrlAllowed, UrlRejectedError } from "./url-guard.js";
-import { defaultSleep } from "../../llm/rate-limiter.js";
+import { defaultSleep } from "../../lib/llm/rate-limiter.js";
 
 export const PAGE_TIMEOUT_MS = 10_000;
 export const MAX_PAGE_BYTES = 2 * 1024 * 1024;

@@ -3,7 +3,7 @@
 // without calling the model.
 
 import { z } from "zod";
-import { wrapUntrusted, UNTRUSTED_RULE } from "../../llm/untrusted.js";
+import { wrapUntrusted, UNTRUSTED_RULE } from "../../lib/llm/untrusted.js";
 
 export const STAGE_KINDS = [
   "screen", "take-home", "live-coding", "pair-programming", "technical-interview",

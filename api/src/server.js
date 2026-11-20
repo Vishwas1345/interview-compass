@@ -1,7 +1,7 @@
-import { loadConfig } from "./config.js";
-import { connectDb } from "./db/mongo.js";
+import { loadConfig } from "./config/index.js";
+import { connectDb } from "./config/database.js";
 import { createApp } from "./app.js";
-import { createJobRunner } from "./kits/jobs.js";
+import { createJobRunner } from "./services/job.service.js";
 import { createPipelineDeps } from "./pipeline/run-pipeline.js";
 
 const config = loadConfig();

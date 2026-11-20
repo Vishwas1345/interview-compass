@@ -8,7 +8,7 @@
 // No SDK: plain fetch keeps the rate-limit headers and errors in our hands.
 
 import { createRateLimiter, defaultSleep } from "./rate-limiter.js";
-import { PipelineError, ERROR_CODES } from "../pipeline/errors.js";
+import { PipelineError, ERROR_CODES } from "../../pipeline/errors.js";
 
 export const MAX_ATTEMPTS = 5;
 export const BASE_BACKOFF_MS = 1000;

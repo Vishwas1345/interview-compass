@@ -3,7 +3,7 @@
 
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongoClient } from "mongodb";
-import { ensureIndexes } from "../../src/db/mongo.js";
+import { ensureIndexes } from "../../src/config/database.js";
 import { createApp } from "../../src/app.js";
 
 export async function startTestDb() {

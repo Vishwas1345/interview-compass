@@ -5,8 +5,8 @@ import { validateKit } from "@interview-compass/shared";
 import { startTestDb, startTestApp, browser, testClock } from "./helpers/app.js";
 import { JD, fakeLlm, testPipelineDeps } from "./helpers/fake-llm.js";
 import { startFixtureServer } from "./fixtures/server.js";
-import { createJobRunner } from "../src/kits/jobs.js";
-import { MAX_KITS_PER_DAY } from "../src/routes/kits.js";
+import { createJobRunner } from "../src/services/job.service.js";
+import { MAX_KITS_PER_DAY } from "../src/routes/kit.routes.js";
 
 let testDb, app, fixtures, jobs, pipelineDeps, clock;
 before(async () => {

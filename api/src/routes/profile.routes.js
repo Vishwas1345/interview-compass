@@ -3,10 +3,10 @@
 
 import express, { Router } from "express";
 import { z } from "zod";
-import { HttpError } from "../http/errors.js";
-import { requireUploadHeader } from "../http/middleware.js";
-import { profileView } from "../auth/users.js";
-import { detectFileType, safeFilename } from "../profile/files.js";
+import { HttpError } from "../middlewares/error-handler.js";
+import { requireUploadHeader } from "../middlewares/auth.middleware.js";
+import { profileView } from "../views/user.view.js";
+import { detectFileType, safeFilename } from "../services/file.service.js";
 
 export const PHOTO_MAX_BYTES = 1024 * 1024;
 export const RESUME_MAX_BYTES = 4 * 1024 * 1024; // under Vercel's ~4.5 MB proxy body limit

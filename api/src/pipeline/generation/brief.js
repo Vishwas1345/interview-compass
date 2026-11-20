@@ -2,7 +2,7 @@
 // when there is nothing to summarise, code writes an honest brief without a call.
 
 import { z } from "zod";
-import { wrapUntrusted, UNTRUSTED_RULE } from "../../llm/untrusted.js";
+import { wrapUntrusted, UNTRUSTED_RULE } from "../../lib/llm/untrusted.js";
 
 export const BRIEF_INPUT_CAP = 12_000;
 

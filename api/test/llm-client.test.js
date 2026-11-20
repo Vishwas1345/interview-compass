@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { z } from "zod";
-import { createLlmClient, parseRetryAfter, MAX_ATTEMPTS } from "../src/llm/client.js";
-import { createRateLimiter } from "../src/llm/rate-limiter.js";
-import { wrapUntrusted } from "../src/llm/untrusted.js";
-import { loadConfig } from "../src/config.js";
+import { createLlmClient, parseRetryAfter, MAX_ATTEMPTS } from "../src/lib/llm/client.js";
+import { createRateLimiter } from "../src/lib/llm/rate-limiter.js";
+import { wrapUntrusted } from "../src/lib/llm/untrusted.js";
+import { loadConfig } from "../src/config/index.js";
 
 // Fake clock: sleeping moves time forward instantly and records each wait.
 function fakeClock() {

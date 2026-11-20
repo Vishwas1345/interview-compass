@@ -7,7 +7,7 @@
 
 import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
-import { loadConfig } from "../config.js";
+import { loadConfig } from "../config/index.js";
 import { runPipeline, createPipelineDeps } from "../pipeline/run-pipeline.js";
 import { ERROR_CODES } from "../pipeline/errors.js";
 

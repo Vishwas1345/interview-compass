@@ -6,12 +6,12 @@ import { Router } from "express";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { DAYS_MIN, DAYS_MAX } from "@interview-compass/shared";
-import { HttpError } from "../http/errors.js";
+import { HttpError } from "../middlewares/error-handler.js";
 import { MAX_JD_CHARS } from "../pipeline/extraction/extract-requirements.js";
-import { dedupeKey } from "../kits/dedupe.js";
-import { applyOp } from "../kits/ops.js";
-import { briefHasEdits } from "../kits/merge.js";
-import { coachAnswer, createCoachLimiter, ANSWER_MAX } from "../coach/coach.js";
+import { dedupeKey } from "../services/dedupe.service.js";
+import { applyOp } from "../services/kit-ops.service.js";
+import { briefHasEdits } from "../services/kit-merge.service.js";
+import { coachAnswer, createCoachLimiter, ANSWER_MAX } from "../services/coach.service.js";
 import { QUESTION_CATEGORIES } from "@interview-compass/shared";
 import { validateKit } from "@interview-compass/shared";
 

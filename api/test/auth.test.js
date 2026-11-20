@@ -1,7 +1,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { startTestDb, startTestApp, browser, testClock } from "./helpers/app.js";
-import { SESSION_DAYS } from "../src/auth/sessions.js";
+import { SESSION_DAYS } from "../src/services/session.service.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 let testDb, app, clock;

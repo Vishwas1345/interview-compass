@@ -9,7 +9,7 @@ import { planCategories } from "../pipeline/generation/categories.js";
 import { generateQuestions, createGapGenerator } from "../pipeline/generation/questions.js";
 import { writeBrief } from "../pipeline/generation/brief.js";
 import { closeGaps, findUncovered } from "../pipeline/coverage/coverage.js";
-import { mergeCategory, mergeBrief } from "./merge.js";
+import { mergeCategory, mergeBrief } from "./kit-merge.service.js";
 
 export const MERGE_ATTEMPTS = 3; // re-read and re-merge when an edit lands first
 

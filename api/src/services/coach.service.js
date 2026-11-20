@@ -4,7 +4,7 @@
 // one concrete improvement. It never writes the answer for them.
 
 import { z } from "zod";
-import { wrapUntrusted, UNTRUSTED_RULE } from "../llm/untrusted.js";
+import { wrapUntrusted, UNTRUSTED_RULE } from "../lib/llm/untrusted.js";
 
 export const ANSWER_MAX = 3000;
 

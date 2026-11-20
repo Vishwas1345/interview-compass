@@ -1,11 +1,11 @@
 import express from "express";
-import { errorHandler } from "./http/errors.js";
-import { requireJson, requireUser } from "./http/middleware.js";
-import { createSessionStore } from "./auth/sessions.js";
-import { authRoutes } from "./routes/auth.js";
-import { kitRoutes } from "./routes/kits.js";
-import { profileRoutes } from "./routes/profile.js";
-import { accountRoutes } from "./routes/account.js";
+import { errorHandler } from "./middlewares/error-handler.js";
+import { requireJson, requireUser } from "./middlewares/auth.middleware.js";
+import { createSessionStore } from "./services/session.service.js";
+import { authRoutes } from "./routes/auth.routes.js";
+import { kitRoutes } from "./routes/kit.routes.js";
+import { profileRoutes } from "./routes/profile.routes.js";
+import { accountRoutes } from "./routes/account.routes.js";
 
 // Builds the Express app without listening, so tests can mount it directly.
 // Everything lives under /api: the web app proxies /api/* here, so the session
