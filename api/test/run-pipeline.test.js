@@ -1,7 +1,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { validateKit } from "@interview-compass/shared";
-import { runPipeline, CHECKPOINT_STEPS } from "../src/pipeline/run-pipeline.js";
+import { runPipeline, CHECKPOINT_STEPS, companyNamedIn } from "../src/pipeline/run-pipeline.js";
 import { PipelineError } from "../src/pipeline/errors.js";
 import { JD, fakeLlm, testPipelineDeps as deps } from "./helpers/fake-llm.js";
 import { startFixtureServer } from "./fixtures/server.js";
@@ -138,4 +138,24 @@ test("an address typed without a scheme falls back to http when https cannot con
   assert.ok(kit.research.hiring_page_found);
   assert.ok(!kit.research.notes.some((n) => /could not be reached/.test(n)));
   assert.ok(kit.research.pages_tried.some((p) => p.status === "skipped" && p.url.startsWith("https://")), "the failed https try is recorded");
+});
+
+test("a posting that never names the website's company gets a note (Trao posting + Acme site, seen live)", async () => {
+  const otherPosting = "Backend Engineer at Trao\nWhat you need\n- Strong experience with Node.js in production";
+  const llm = fakeLlm({ requirements: [{ text: "Node.js", quote: "Strong experience with Node.js in production", kind: "technical", priority: "must" }] });
+  const { kit } = await runPipeline({ company_url: `${fixtures.origin}/acme/`, jd: otherPosting, days: 2 }, deps(llm));
+  assert.equal(kit.research.company_named_in_posting, false);
+  assert.ok(kit.research.notes.some((n) => /does not mention Acme Rockets/.test(n)));
+
+  const { kit: matching } = await runPipeline({ company_url: `${fixtures.origin}/acme/`, jd: `${JD}\nAbout Acme: we fly rockets.`, days: 2 }, deps(fakeLlm()));
+  assert.equal(matching.research.company_named_in_posting, true);
+  assert.ok(!matching.research.notes.some((n) => /does not mention/.test(n)));
+});
+
+test("company name matching: whole words, any case, first distinctive word", () => {
+  assert.equal(companyNamedIn("Join us at ACME!", "Acme Rockets"), true);
+  assert.equal(companyNamedIn("We build rockets.", "Acme Rockets"), false, "a generic later word does not count");
+  assert.equal(companyNamedIn("Work at Acmeco", "Acme"), false, "part of a longer word does not count");
+  assert.equal(companyNamedIn("Trao is an AI R&D lab", "Trao Labs"), true);
+  assert.equal(companyNamedIn("about c++ (and more)", "C++ (Labs)"), true, "regex characters are literal");
 });

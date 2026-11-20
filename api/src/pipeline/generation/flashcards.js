@@ -17,6 +17,7 @@ Return JSON: { "flashcards": [{ "front", "back", "requirement_ids" }] }
 - At most ${MAX_FLASHCARDS} cards. Prefer must-have requirements; aim for at least one card per must-have requirement listed.
 - "front": a short cue or question (under 15 words). "back": the key facts or points, under 50 words.
 - Cards test knowledge the candidate needs: concepts, definitions, trade-offs and the key points of strong answers. Never a card that restates the job posting itself (years of experience, "is X required?"), and no "tell me about a time" prompts.
+- For behavioural requirements, a card covers what the interviewer listens for and how to structure the story (situation, task, action, result), e.g. "Ownership answer: what do interviewers listen for?". The candidate's own experience is theirs to supply: a card never states their past projects, achievements, metrics or results.
 - "requirement_ids": ids from the list that the card supports. Use only listed ids.
 - Use only the material given.`;
 

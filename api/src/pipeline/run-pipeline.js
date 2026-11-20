@@ -212,7 +212,8 @@ export async function runPipeline(input, deps) {
       discussion_found: discussion.found,
       discussion_sources: discussion.sources.map(({ provider, title, url }) => ({ provider, title, url })),
       interview_stages: process.stages,
-      notes: writeNotes({ role, crawl, discussion, process, coverage }),
+      company_named_in_posting: crawl.reachable ? companyNamedIn(jd, crawl.companyName) : null, // additive
+      notes: writeNotes({ jd, role, crawl, discussion, process, coverage }),
     },
   };
 
@@ -279,8 +280,11 @@ async function softly(fn, fallback) {
   }
 }
 
-function writeNotes({ role, crawl, discussion, process, coverage }) {
+function writeNotes({ jd, role, crawl, discussion, process, coverage }) {
   const notes = [];
+  if (crawl.reachable && crawl.companyName && !companyNamedIn(jd, crawl.companyName)) {
+    notes.push(`The posting does not mention ${crawl.companyName}. Check that the website belongs to this employer: the brief and company questions come from that site.`);
+  }
   const n = role.requirements.length;
   if (n === 0) {
     notes.push("No requirements could be found in this posting, so the questions are general to the role and the company.");
@@ -304,4 +308,16 @@ function writeNotes({ role, crawl, discussion, process, coverage }) {
   const fallbacks = coverage.questions.filter((q) => q.fallback).length;
   if (fallbacks > 0) notes.push(`${fallbacks} must-have requirement(s) got a plain fallback question because the model did not cover them.`);
   return notes;
+}
+
+// Does the posting name the company found on the website? Whole words, any case:
+// the full name, or its first distinctive word ("Acme" for "Acme Rockets").
+// Catches a posting pasted with another company's website (seen live).
+const GENERIC_NAME_WORDS = new Set(["the", "inc", "llc", "ltd", "labs", "lab", "company", "group", "technologies", "technology", "software", "ai", "hq"]);
+export function companyNamedIn(jd, companyName) {
+  const words = String(companyName).split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 2);
+  const first = words.find((w) => !GENERIC_NAME_WORDS.has(w.toLowerCase()));
+  const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const named = (text) => new RegExp(`(^|[^\\p{L}\\p{N}])${escape(text)}($|[^\\p{L}\\p{N}])`, "iu").test(jd);
+  return named(companyName.trim()) || (first ? named(first) : true);
 }

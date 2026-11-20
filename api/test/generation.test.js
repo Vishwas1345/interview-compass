@@ -148,3 +148,10 @@ test("gap mode keeps one question per uncovered requirement, even if the model w
   const { questions } = await generateQuestions({ category: "technical", requirements: [requirements[0], requirements[2]], context, gapMode: true, llm, model: "m" });
   assert.deepEqual(questions.map((q) => q.prompt), ["A", "C"]);
 });
+
+test("flashcards are told never to invent the candidate's experience (live run produced fake '45% throughput' stories)", async () => {
+  const calls = [];
+  const llm = { chatJson: async (call) => (calls.push(call), { data: { flashcards: [] }, usage: {} }) };
+  await makeFlashcards({ questions: [{ prompt: "Tell me about ownership", answer_outline: "STAR", requirement_ids: ["r2"] }], requirements, llm, model: "m" });
+  assert.match(calls[0].system, /never states their past projects, achievements, metrics or results/);
+});
