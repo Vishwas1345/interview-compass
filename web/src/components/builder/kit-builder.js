@@ -11,6 +11,7 @@ import { FlashcardsTab } from "@/components/builder/flashcards-tab";
 import { ScheduleTab } from "@/components/builder/schedule-tab";
 import { BriefTab } from "@/components/builder/brief-tab";
 import { ResearchTab } from "@/components/builder/research-tab";
+import { PostingTab } from "@/components/builder/posting-tab";
 import { KIT_SECTIONS } from "@/components/app-shell";
 
 const UNDO_MS = 5000;
@@ -162,6 +163,7 @@ export function KitBuilder({ doc, runOp, replace }) {
       <h2 className="mt-10 border-b border-rule pb-3 font-display text-[26px] leading-tight text-ink">{section.label}</h2>
 
       <div className="mt-3">
+        {tab === "posting" && <PostingTab ctx={ctx} />}
         {tab === "questions" && <QuestionsTab ctx={ctx} />}
         {tab === "coverage" && <CoverageTab ctx={ctx} />}
         {tab === "flashcards" && <FlashcardsTab ctx={ctx} />}

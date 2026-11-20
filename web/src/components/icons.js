@@ -29,3 +29,4 @@ export const IconLogOut = (p) => <Icon {...p}><path d="M15 4h4a1 1 0 0 1 1 1v14a
 export const IconCheck = (p) => <Icon {...p}><path d="m5 12 5 5L20 7" /></Icon>;
 export const IconSparkles = (p) => <Icon {...p}><path d="M12 3l1.8 4.6L18 9.5l-4.2 1.9L12 16l-1.8-4.6L6 9.5l4.2-1.9zM19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" /></Icon>;
 export const IconChevronDown = (p) => <Icon {...p}><path d="m6 9 6 6 6-6" /></Icon>;
+export const IconFileText = (p) => <Icon {...p}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h6M9 9h2" /></Icon>;

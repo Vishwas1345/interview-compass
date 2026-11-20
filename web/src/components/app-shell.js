@@ -8,11 +8,12 @@ import { Avatar } from "@/components/avatar";
 import { Brand } from "@/components/brand";
 import { AppHeader } from "@/components/app-header";
 import {
-  IconBuilding, IconCalendar, IconCards, IconClose, IconKits, IconLogOut, IconMenu, IconPlay, IconPlus, IconQuestions, IconSearch, IconTarget,
+  IconBuilding, IconCalendar, IconCards, IconClose, IconFileText, IconKits, IconLogOut, IconMenu, IconPlay, IconPlus, IconQuestions, IconSearch, IconTarget,
 } from "@/components/icons";
 
 // The kit's sections; the builder reads ?tab= (kit-builder.js).
 export const KIT_SECTIONS = [
+  { id: "posting", label: "Job description", Icon: IconFileText },
   { id: "questions", label: "Questions", Icon: IconQuestions },
   { id: "coverage", label: "Coverage", Icon: IconTarget },
   { id: "flashcards", label: "Flashcards", Icon: IconCards },
@@ -87,7 +88,8 @@ export function AppShell({ children }) {
       </aside>
 
       <main id="main" className="min-w-0 flex-1 px-5 pb-16 pt-20 sm:px-8 lg:px-12 lg:pt-12">
-        <div className="mx-auto max-w-5xl">{children}</div>
+        {/* One page width for every signed-in page (same left edge, same title position). */}
+        <div className="mx-auto max-w-6xl">{children}</div>
       </main>
     </div>
   );

@@ -76,10 +76,11 @@ function CreateKitFormInner() {
 
   const existing = duplicate?.existing;
   return (
-    <div className="mx-auto max-w-2xl">
+    <div>
       <h1 className="font-display text-[34px] leading-tight text-ink">New prep kit</h1>
       <p className="mt-1 text-sm text-muted">Generation takes about one to two minutes. You can leave the page; it keeps going.</p>
-      <Card className="mt-6 p-5">
+      <div className="mt-7 grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <Card className="p-6">
         <form onSubmit={submit} noValidate className="space-y-5">
           <Field
             label="Job description"
@@ -110,6 +111,8 @@ function CreateKitFormInner() {
           </div>
         </form>
       </Card>
+      <NextSteps />
+      </div>
 
       <Dialog
         open={Boolean(duplicate)}
@@ -140,5 +143,42 @@ function CreateKitFormInner() {
         )}
       </Dialog>
     </div>
+  );
+}
+
+const STEPS = [
+  ["Read the posting", "Requirements are quoted word for word; must-have or nice to have from how it is worded."],
+  ["Research the company", "Its site, about and hiring pages, and public discussion of its interviews."],
+  ["Write questions", "One category at a time, then a check that every requirement has one."],
+  ["Plan your days", "Flashcards and a day-by-day schedule, hardest and must-have first."],
+];
+
+// What generation does, beside the form: sets expectations while it fills the page.
+function NextSteps() {
+  return (
+    <aside className="space-y-8">
+      <section>
+        <h2 className="eyebrow">What happens next</h2>
+        <ol className="mt-4 border-l border-rule">
+          {STEPS.map(([title, text], i) => (
+            <li key={title} className="relative pb-5 pl-5 last:pb-0">
+              <span aria-hidden="true" className="absolute -left-[9px] top-0 grid h-[18px] w-[18px] place-items-center rounded-full border border-rule-strong bg-paper font-mono text-[10px] text-muted">
+                {i + 1}
+              </span>
+              <p className="text-sm font-medium text-ink">{title}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-muted">{text}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+      <section>
+        <h2 className="eyebrow">For the best kit</h2>
+        <ul className="mt-3 space-y-2 text-xs leading-relaxed text-muted">
+          <li className="border-l-2 border-rule pl-3">Paste the whole posting, including “requirements” and “nice to have”.</li>
+          <li className="border-l-2 border-rule pl-3">Use the employer’s own website, not a job board.</li>
+          <li className="border-l-2 border-rule pl-3">Pick the days you really have; you can change them later.</li>
+        </ul>
+      </section>
+    </aside>
   );
 }

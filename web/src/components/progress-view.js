@@ -51,7 +51,8 @@ export function ProgressView({ kit, onChange }) {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="min-w-0">
       {kit.status === "failed" && (
         <Alert title="This kit could not be generated" action={<Button size="sm" busy={busy} onClick={resume}>Try again</Button>}>
           {kit.error?.message} <span className="text-xs opacity-75">({kit.error?.code})</span>
@@ -110,6 +111,29 @@ export function ProgressView({ kit, onChange }) {
           })}
         </ol>
       </Card>
+      </div>
+      <aside className="space-y-6">
+        <section>
+          <h2 className="eyebrow">You asked for</h2>
+          <dl className="mt-3 space-y-3 text-sm">
+            <div>
+              <dt className="text-xs text-muted">Company website</dt>
+              <dd className="break-all text-ink">{kit.input?.company_url}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted">Days to prepare</dt>
+              <dd className="text-ink">{kit.input?.days}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted">Job description</dt>
+              <dd className="text-ink">{(kit.input?.jd?.length ?? 0).toLocaleString()} characters</dd>
+            </div>
+          </dl>
+        </section>
+        <p className="border-l-2 border-rule pl-3 text-xs leading-relaxed text-muted">
+          Each step is saved as it finishes. If anything stops part-way, Resume carries on from the last finished step.
+        </p>
+      </aside>
     </div>
   );
 }
