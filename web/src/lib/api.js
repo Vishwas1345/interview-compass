@@ -17,15 +17,21 @@ export function setUnauthenticatedHandler(handler) {
   onUnauthenticated = handler;
 }
 
-export async function api(path, { method = "GET", body, signal } = {}) {
+export async function api(path, { method = "GET", body, signal, file, headers: extraHeaders } = {}) {
   let response;
   try {
+    // A file goes as the raw body with the app's upload header (D16); anything else as JSON.
+    const headers = file
+      ? { "Content-Type": file.type || "application/octet-stream", "X-Requested-With": "InterviewCompass", ...extraHeaders }
+      : body !== undefined
+        ? { "Content-Type": "application/json" }
+        : undefined;
     response = await fetch(`/api${path}`, {
       method,
       signal,
       credentials: "same-origin",
-      headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      headers,
+      body: file ?? (body !== undefined ? JSON.stringify(body) : undefined),
     });
   } catch (error) {
     if (error.name === "AbortError") throw error;
@@ -48,10 +54,14 @@ export async function api(path, { method = "GET", body, signal } = {}) {
     message ?? (response.status >= 500 ? "The server is having trouble. Try again in a moment." : "Something went wrong."),
     details,
   );
-  if (response.status === 401 && !path.startsWith("/auth/")) onUnauthenticated(error);
+  // Only a missing or ended session sends the user to sign in; a wrong current
+  // password (WRONG_PASSWORD, also 401) is a form error.
+  if (response.status === 401 && (code === "UNAUTHENTICATED" || code === "SESSION_EXPIRED") && !path.startsWith("/auth/")) onUnauthenticated(error);
   throw error;
 }
 
 export const get = (path, options) => api(path, options);
 export const post = (path, body = {}, options) => api(path, { ...options, method: "POST", body });
 export const del = (path) => api(path, { method: "DELETE" });
+export const patch = (path, body = {}) => api(path, { method: "PATCH", body });
+export const upload = (path, file, headers) => api(path, { method: "PUT", file, headers });

@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "@/components/session";
+import { Avatar } from "@/components/avatar";
 import { AppHeader } from "@/components/app-header";
 import {
   IconBuilding, IconCalendar, IconCards, IconClose, IconKits, IconLogOut, IconMenu, IconPlay, IconPlus, IconQuestions, IconSearch, IconTarget,
@@ -75,9 +76,9 @@ export function AppShell({ children }) {
           </Suspense>
         </nav>
         <div className="border-t border-zinc-200 px-3 py-3">
-          <p className="truncate px-2 text-xs text-zinc-500" title={session.user.email}>
-            {session.user.email}
-          </p>
+          <Suspense fallback={<ProfileLink user={session.user} onNavigate={() => setOpen(false)} />}>
+            <ProfileLinkActive user={session.user} onNavigate={() => setOpen(false)} />
+          </Suspense>
           <button type="button" onClick={session.signOut} className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100">
             <IconLogOut /> Sign out
           </button>
@@ -173,4 +174,22 @@ function SidebarNav({ onNavigate }) {
       )}
     </>
   );
+}
+
+// The signed-in user at the bottom of the sidebar; opens the profile page.
+function ProfileLink({ user, onNavigate, active = false }) {
+  return (
+    <Link href="/profile" onClick={onNavigate} aria-current={active ? "page" : undefined} className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 ${active ? "bg-indigo-50" : "hover:bg-zinc-100"}`}>
+      <Avatar user={user} />
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-medium text-zinc-900">{user.name || user.email}</span>
+        <span className="block truncate text-xs text-zinc-500">{user.jobTitle || (user.name ? user.email : "Your profile")}</span>
+      </span>
+    </Link>
+  );
+}
+
+function ProfileLinkActive(props) {
+  const pathname = usePathname();
+  return <ProfileLink {...props} active={pathname === "/profile"} />;
 }

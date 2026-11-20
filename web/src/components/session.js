@@ -50,6 +50,10 @@ export function SessionProvider({ children }) {
   }, [router]);
 
   const signedIn = useCallback((user) => setState({ status: "signedIn", user }), []);
+  // After a profile change: refresh what the sidebar shows, without a reload.
+  const updateUser = useCallback((user) => setState((s) => (s.status === "signedIn" ? { ...s, user: { ...s.user, ...user } } : s)), []);
+  // After the account is deleted: the server already ended the session.
+  const signedOutLocally = useCallback(() => setState({ status: "signedOut", user: null }), []);
   const signOut = useCallback(async () => {
     try {
       await post("/auth/logout");
@@ -59,7 +63,7 @@ export function SessionProvider({ children }) {
     }
   }, [router]);
 
-  const value = useMemo(() => ({ ...state, signedIn, signOut }), [state, signedIn, signOut]);
+  const value = useMemo(() => ({ ...state, signedIn, signOut, updateUser, signedOutLocally }), [state, signedIn, signOut, updateUser, signedOutLocally]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
