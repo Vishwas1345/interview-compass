@@ -42,18 +42,13 @@ export function Spinner({ className = "h-4 w-4" }) {
 // A labelled input or textarea with hint and error wired to aria-describedby.
 export function Field({ label, hint, error, multiline = false, className = "", ...props }) {
   const id = useId();
-  const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined;
+  const describedBy = (error ? `${id}-error` : hint ? `${id}-hint` : "") || undefined;
   const Control = multiline ? "textarea" : "input";
   return (
     <div className={className}>
       <label htmlFor={id} className="block text-sm font-medium text-zinc-800">
         {label}
       </label>
-      {hint && (
-        <p id={`${id}-hint`} className="mt-0.5 text-xs text-zinc-500">
-          {hint}
-        </p>
-      )}
       <Control
         id={id}
         aria-invalid={error ? true : undefined}
@@ -63,9 +58,15 @@ export function Field({ label, hint, error, multiline = false, className = "", .
         }`}
         {...props}
       />
+      {/* Hint and error sit below the input, so inputs in a row always line up. */}
       {error && (
         <p id={`${id}-error`} className="mt-1 text-sm text-red-700">
           {error}
+        </p>
+      )}
+      {hint && !error && (
+        <p id={`${id}-hint`} className="mt-1 text-xs text-zinc-500">
+          {hint}
         </p>
       )}
     </div>
