@@ -19,6 +19,7 @@ InterviewCompass, an AI interview prep kit built as a take-home assessment for T
 ## Workflow: spec-driven
 
 Spec → plan → build, one phase at a time. Each gate waits for Vishwas's approval.
+The skills in `.claude/skills/` run it: `how-to-work` (the flow), `explore-codebase` → `EXPLORATION.md`, `write-spec` → `SPEC.md`, `implementation-plan` → `PLAN.md`; `writing-for-agents` for this file and `CLAUDE.md`.
 
 - `SPEC.md` describes the feature in plain words; it is committed **with** the feature, once it matches what was built.
 - `PLAN.md` is a local throwaway: gitignored, never committed. Implementation steps, phases and checklists live only there.
