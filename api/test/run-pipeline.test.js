@@ -1,9 +1,9 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { validateKit } from "@interview-compass/shared";
-import { runPipeline } from "../src/pipeline/run-pipeline.js";
-import { createFetcher } from "../src/pipeline/retrieval/fetch-page.js";
+import { runPipeline, CHECKPOINT_STEPS } from "../src/pipeline/run-pipeline.js";
 import { PipelineError } from "../src/pipeline/errors.js";
+import { JD, fakeLlm, testPipelineDeps as deps } from "./helpers/fake-llm.js";
 import { startFixtureServer } from "./fixtures/server.js";
 
 let fixtures;
@@ -14,60 +14,6 @@ after(() => {
   fixtures.server.closeAllConnections();
   fixtures.server.close();
 });
-
-const JD = `Senior Backend Engineer
-What you need
-- Strong experience with Node.js in production
-- You mentor other engineers
-Bonus points for
-- Aerospace background`;
-
-const REQUIREMENTS = [
-  { text: "Node.js in production", quote: "Strong experience with Node.js in production", kind: "technical", priority: "must" },
-  { text: "Mentoring", quote: "You mentor other engineers", kind: "behavioural", priority: "must" },
-  { text: "Aerospace background", quote: "Aerospace background", kind: "domain", priority: "nice" },
-];
-
-// Answers each call by its label, like the real steps would; records every call.
-function fakeLlm({ requirements = REQUIREMENTS, questions, failLabel } = {}) {
-  const calls = [];
-  const reply = (data) => ({ data, usage: { total_tokens: 10 } });
-  return {
-    calls,
-    chatJson: async ({ label, model, user }) => {
-      calls.push({ label, model, user });
-      if (failLabel && label.startsWith(failLabel)) {
-        throw new PipelineError("LLM_BAD_OUTPUT", `${label}: the model returned invalid output twice.`);
-      }
-      if (label === "extract requirements") {
-        return reply({ title: "Senior Backend Engineer", seniority: "senior", location: "Remote", responsibilities: ["Build APIs"], requirements });
-      }
-      if (label === "company brief") return reply({ summary: "Acme builds rockets.", what_they_do: "Rockets." });
-      if (label === "interview process") {
-        return reply({ stages: [{ name: "Take-home", kind: "take-home", description: "A small project." }, { name: "Design", kind: "system-design", description: "" }] });
-      }
-      if (label.startsWith("questions: ") || label.startsWith("gap pass")) {
-        const ids = [...user.matchAll(/- (r\d+) \(/g)].map((m) => m[1]);
-        if (ids.length === 0) return reply({ questions: [{ prompt: `General (${label})?`, answer_outline: "", difficulty: 1, requirement_ids: [] }] });
-        const list = questions ? questions(label, ids) : ids.map((id) => ({ prompt: `About ${id} (${label})?`, answer_outline: "a; b", difficulty: 2, requirement_ids: [id] }));
-        return reply({ questions: list });
-      }
-      if (label === "flashcards") return reply({ flashcards: [{ front: "Event loop?", back: "Phases.", requirement_ids: ["r1"] }] });
-      throw new Error(`unexpected call ${label}`);
-    },
-  };
-}
-
-function deps(llm) {
-  return {
-    llm,
-    models: { strong: "strong", fast: "fast" },
-    fetcher: createFetcher({ allowPrivate: true, minIntervalMs: 0, sleep: async () => {} }),
-    tavilyApiKey: "",
-    searchFetch: async () => assert.fail("a private fixture host must not be searched"),
-    now: () => new Date("2026-11-21T10:00:00Z"),
-  };
-}
 
 test("a full run produces a valid kit shaped by the published process", async () => {
   const llm = fakeLlm();
@@ -144,4 +90,42 @@ test("empty posting and out-of-range days are rejected before any work", async (
   await assert.rejects(runPipeline({ company_url: "x", jd: JD, days: 0 }, deps(llm)), { code: "INVALID_INPUT" });
   await assert.rejects(runPipeline({ company_url: "x", jd: JD, days: 2.5 }, deps(llm)), { code: "INVALID_INPUT" });
   assert.equal(llm.calls.length, 0);
+});
+
+// --- checkpoints (resume) -------------------------------------------------
+
+test("every resumable step is saved, in pipeline order", async () => {
+  const saved = [];
+  const d = { ...deps(fakeLlm()), onCheckpoint: async (key, value) => saved.push([key, value]) };
+  await runPipeline({ company_url: `${fixtures.origin}/acme/`, jd: JD, days: 3 }, d);
+  assert.deepEqual(saved.map(([key]) => key), CHECKPOINT_STEPS);
+  assert.ok(JSON.parse(JSON.stringify(Object.fromEntries(saved))).crawl.pages[0].text, "page text is kept and serialisable");
+});
+
+test("a full checkpoint rebuilds the same kit with no model calls and no fetches", async () => {
+  const saved = {};
+  const input = { company_url: `${fixtures.origin}/acme/`, jd: JD, days: 3 };
+  const first = await runPipeline(input, { ...deps(fakeLlm()), onCheckpoint: async (k, v) => (saved[k] = v) });
+  const llm = fakeLlm();
+  const d = { ...deps(llm), checkpoint: JSON.parse(JSON.stringify(saved)) };
+  const second = await runPipeline(input, d);
+  assert.equal(llm.calls.length, 0);
+  assert.equal(d.fetcher.fetches, 0);
+  assert.deepEqual(second.kit.questions, first.kit.questions);
+  assert.deepEqual(second.usage, {}, "tokens from the earlier run are not counted again");
+});
+
+test("resuming after extraction and research skips them and continues", async () => {
+  const saved = {};
+  const input = { company_url: `${fixtures.origin}/acme/`, jd: JD, days: 3 };
+  await runPipeline(input, { ...deps(fakeLlm()), onCheckpoint: async (k, v) => (saved[k] = v) });
+  const llm = fakeLlm();
+  const events = [];
+  const d = { ...deps(llm), checkpoint: { role: saved.role, crawl: saved.crawl }, onProgress: (e) => events.push(e) };
+  const { kit } = await runPipeline(input, d);
+  assert.ok(!llm.calls.some((c) => c.label === "extract requirements"));
+  assert.equal(d.fetcher.fetches, 0, "the website is not crawled again");
+  assert.ok(llm.calls.some((c) => c.label === "company brief"), "later steps still run");
+  assert.deepEqual(events.filter((e) => e.status === "reused").map((e) => e.step), ["extract requirements", "research company site"]);
+  assert.equal(kit.role.requirements.length, 3);
 });

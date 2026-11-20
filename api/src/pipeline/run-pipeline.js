@@ -26,6 +26,9 @@ import { createFetcher } from "./retrieval/fetch-page.js";
 // A posting with this many requirements or fewer gets a "this kit is short" note.
 export const THIN_REQUIREMENT_COUNT = 3;
 
+// Steps whose results are saved for resume, in pipeline order.
+export const CHECKPOINT_STEPS = ["role", "crawl", "discussion", "brief", "process", "drafted", "coverage", "flashcards"];
+
 // The real dependencies from config, shared by the batch command and the API so
 // both run the same code path. Build once per process: the LLM client holds the
 // per-model rate budget, which must be shared by every run.
@@ -39,11 +42,16 @@ export function createPipelineDeps(config, { log = () => {} } = {}) {
 }
 
 // input: { company_url, jd, days }
-// deps:  { llm, models: { strong, fast }, fetcher, tavilyApiKey, searchFetch, now, onProgress }
+// deps:  { llm, models: { strong, fast }, fetcher, tavilyApiKey, searchFetch, now, onProgress,
+//          checkpoint, onCheckpoint }
+// checkpoint: results of steps finished in an earlier, interrupted run, keyed by
+// CHECKPOINT_STEPS; those steps are reused (reported as "reused") instead of re-run.
+// onCheckpoint(key, result) is awaited after each of those steps finishes.
 // → { kit, usage: { [model]: total_tokens }, timings: [{ step, ms }] }
 export async function runPipeline(input, deps) {
   const { jd, days, companyUrl } = checkInput(input);
   const { llm, models, fetcher, tavilyApiKey, searchFetch, now = () => new Date(), onProgress = () => {} } = deps;
+  const { checkpoint = {}, onCheckpoint = async () => {} } = deps;
 
   const usage = {};
   const track = (model) => (u) => {
@@ -52,27 +60,35 @@ export async function runPipeline(input, deps) {
   const strongUsage = track(models.strong);
   const fastUsage = track(models.fast);
   const timings = [];
-  const step = async (name, fn) => {
+  const step = async (name, fn, key) => {
+    if (key && checkpoint[key] !== undefined) {
+      onProgress({ step: name, status: "reused" });
+      const saved = checkpoint[key];
+      // Tokens spent in the earlier run are not counted again.
+      return saved && typeof saved === "object" && !Array.isArray(saved) ? { ...saved, usage: null } : saved;
+    }
     onProgress({ step: name, status: "started" });
     const started = Date.now();
     const result = await fn();
     const ms = Date.now() - started;
     timings.push({ step: name, ms });
+    if (key) await onCheckpoint(key, result);
     onProgress({ step: name, status: "done", ms });
     return result;
   };
   const log = (message) => onProgress({ step: "log", message });
 
   // 1. Requirements. A failure here fails the case: without it there is no kit.
-  const role = await step("extract requirements", () => extractRequirements({ jd, llm, model: models.strong, log }));
+  const role = await step("extract requirements", () => extractRequirements({ jd, llm, model: models.strong, log }), "role");
   strongUsage(role.usage);
 
   // 2. Company website. An invalid address is treated like an unreachable site.
-  const crawl = await step("research company site", () => crawlSafely(companyUrl, { fetcher, log }));
+  const crawl = await step("research company site", () => crawlSafely(companyUrl, { fetcher, log }), "crawl");
 
   // 3. Public discussion of the interview process.
   const discussion = await step("search public discussion", () =>
     searchDiscussion({ companyName: crawl.companyName, companyUrl, tavilyApiKey, fetch: searchFetch, log }),
+    "discussion",
   );
 
   // 4–5. Brief and interview process (fast model). A bad answer degrades, never fails.
@@ -83,6 +99,7 @@ export async function runPipeline(input, deps) {
       sources: [],
       usage: null,
     }),
+    "brief",
   );
   fastUsage(brief.usage);
 
@@ -94,6 +111,7 @@ export async function runPipeline(input, deps) {
       usage: null,
       failed: true,
     }),
+    "process",
   );
   fastUsage(process.usage);
 
@@ -127,7 +145,7 @@ export async function runPipeline(input, deps) {
       all.push(...result.questions);
     }
     return all.map((q, i) => ({ id: `q${i + 1}`, ...q }));
-  });
+  }, "drafted");
 
   // 8. Coverage check and gap loop, in code.
   const coverage = await step("check coverage", () =>
@@ -136,6 +154,7 @@ export async function runPipeline(input, deps) {
       questions: drafted,
       generateForGaps: createGapGenerator({ context, llm, model: models.strong, onUsage: strongUsage }),
     }),
+    "coverage",
   );
 
   // 9. Flashcards (fast model).
@@ -144,6 +163,7 @@ export async function runPipeline(input, deps) {
       flashcards: [],
       usage: null,
     }),
+    "flashcards",
   );
   fastUsage(cards.usage);
 

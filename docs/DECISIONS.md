@@ -159,3 +159,15 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 **Considered:** Mongoose; a hand-written in-memory fake of the collections; a test database on Atlas.
 
 **Why:** the kit is already validated by the shared zod contract (`validateKit`), so a Mongoose schema would be a second copy that drifts from it. A fake would not enforce unique and partial indexes, and those indexes carry real rules ("one account per email", "one generation per user"). An Atlas test database would make `npm test` fail from a clean clone without credentials. **Cost we accept:** the first test run downloads a ~77 MB `mongod` binary, cached afterwards.
+
+---
+
+## D12 — Generation runs as a background job; the kit document is its state
+
+**Date:** 2026-11-20
+
+**Decision:** `POST /api/kits` inserts the kit as `generating` and returns 202 at once; the pipeline runs in the API process and writes its progress events and each finished step's result (`checkpoint`) into the kit document. The page polls `GET /api/kits/:id`. On startup, any kit still `generating` is marked `interrupted` (one instance runs every job); **Resume** reruns the pipeline with the saved checkpoint, so finished steps are reused (shown as "reused" in the progress) and not paid for again. Duplicates: a partial unique index allows one `generating` kit per user, so two simultaneous Generate clicks can never both insert; the loser joins the running kit. A second, different posting while one runs gets `GENERATION_RUNNING`; the same posting after it finished gets `DUPLICATE` with "open it / create anyway". At most 10 new kits per user per rolling 24 hours.
+
+**Considered:** a job queue (BullMQ with Redis, Agenda); streaming progress with server-sent events; restarting failed runs from scratch.
+
+**Why:** a single free instance gains nothing from a queue but a Redis dependency. Polling a document works through every proxy (the web rewrite, Render's front end), where a long-lived stream can be buffered or cut, and the document makes progress visible from any tab or device. Checkpoints answer the brief's "persist enough to resume": a restart after research costs only the remaining steps (in a live test, a kill after five steps resumed with all five reused). The database index settles the double-click race; code-level checks alone lost it in testing.
