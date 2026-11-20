@@ -121,3 +121,17 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 **Considered:** an edit log replayed onto the regenerated kit; versioned snapshots with a manual merge UI.
 
 **Why:** the label moves "may this be replaced?" from a guess at merge time to a fact recorded at edit time, so the merge is a filter that is easy to test and to explain. The edit log breaks when operations point at items a regeneration removed; snapshots hand the merge back to the user. A kit is one MongoDB document, so each merge is one atomic update.
+
+---
+
+## D9 — Hosting: Vercel (web), Render free (API), MongoDB Atlas M0 (database)
+
+**Date:** 2026-11-20
+
+**Decision:** `web/` on Vercel's free plan; `api/` as a Render free web service (an always-on Node process); MongoDB Atlas free M0 cluster. Production sets `NODE_ENV=production` and `ALLOW_PRIVATE_URLS=false` (D6).
+
+**Considered:** running the API as Vercel serverless functions; Koyeb's free instance.
+
+**Why:** generation takes 60–90 seconds, which suits a long-running process and not a function with a short timeout; fitting it into functions would mean splitting the pipeline purely to dodge a platform limit. Render's free tier needs no card and is well documented. Vercel is the native home for Next.js. A kit is a few KB, so Atlas M0 (512 MB) is ample.
+
+**Cost we accept:** Render's free service sleeps after ~15 minutes idle and takes ~50 seconds to wake; the UI pings the API on load and shows a "waking the server" state rather than a silent hang.

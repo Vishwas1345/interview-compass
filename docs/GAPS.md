@@ -10,10 +10,11 @@ Open questions, known limitations, and requirements not yet covered. Add an entr
 - ~~**G3 — Public-discussion search source.**~~ Closed by D7: Tavily (optional key) + Hacker News.
 - ~~**G4 — Scraping approach.**~~ Closed by D6: `fetch` + cheerio, links scored in code.
 - ~~**G5 — Repository layout.**~~ Closed by D2: npm workspaces `web/`, `api/`, `shared/`.
-- **G6 — Hosting.** Free-tier homes for frontend, backend and MongoDB. (Brainstorm.)
+- ~~**G6 — Hosting.**~~ Closed by D9: Vercel, Render free, Atlas M0.
 - ~~**G7 — Edit-state model.**~~ Closed by D8: per-item `state`/`origin` labels, merge on regenerate, dismissed list, versioned writes.
 
 ## Known limitations
 
 - **L1 — JavaScript-only sites.** Pages rendered only by client-side JavaScript come back with little text (no headless browser, D6). Recorded per page as "no readable text".
 - **L2 — Public discussion is thin.** Without a Tavily key only Hacker News is searched; small or private companies usually return nothing, and the kit says so (D7).
+- **L3 — Cold starts.** The Render free API sleeps after ~15 minutes idle; the first request takes ~50 seconds (D9). The UI shows a waking state.
