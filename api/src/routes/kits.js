@@ -11,6 +11,7 @@ import { MAX_JD_CHARS } from "../pipeline/extraction/extract-requirements.js";
 import { dedupeKey } from "../kits/dedupe.js";
 import { applyOp } from "../kits/ops.js";
 import { briefHasEdits } from "../kits/merge.js";
+import { coachAnswer, createCoachLimiter, ANSWER_MAX } from "../coach/coach.js";
 import { QUESTION_CATEGORIES } from "@interview-compass/shared";
 import { validateKit } from "@interview-compass/shared";
 
@@ -50,6 +51,7 @@ export function kitView(doc) {
     scheduleStale: Boolean(doc.scheduleStale),
     regenerating: doc.regenerating ?? null,
     lastRegeneration: doc.lastRegeneration ?? null,
+    practice: doc.practice ?? {},
     updatedAt: doc.updatedAt,
     completedAt: doc.completedAt ?? null,
   };
@@ -63,9 +65,11 @@ function hostOf(url) {
   }
 }
 
-export function kitRoutes({ db, jobs, now = () => new Date() }) {
+// coach: { llm, model } for the answer coach (the fast model).
+export function kitRoutes({ db, jobs, coach, now = () => new Date() }) {
   const kits = db.collection("kits");
   const router = Router();
+  const coachLimiter = createCoachLimiter({ now });
 
   const ownKit = async (req) => {
     if (!ObjectId.isValid(req.params.id)) throw notFound();
@@ -230,8 +234,51 @@ export function kitRoutes({ db, jobs, now = () => new Date() }) {
     res.status(202).json({ kit: kitView(await kits.findOne({ _id: doc._id })) });
   });
 
+  // Practice results live beside the kit, not in it: recording a card neither bumps
+  // the version nor conflicts with builder saves (spec: Practice).
+  router.post("/:id/practice", async (req, res) => {
+    const { itemId, confidence } = practiceBody.parse(req.body ?? {});
+    const doc = await ownKit(req);
+    if (doc.status !== "ready") throw new HttpError(409, "NOT_READY", "This kit is not ready yet.");
+    findPracticeItem(doc.kit, itemId);
+    const at = now();
+    await kits.updateOne(
+      { _id: doc._id, userId: req.user._id },
+      { $set: { [`practice.${itemId}.confidence`]: confidence, [`practice.${itemId}.lastAt`]: at }, $inc: { [`practice.${itemId}.count`]: 1 } },
+    );
+    const updated = await kits.findOne({ _id: doc._id }, { projection: { [`practice.${itemId}`]: 1 } });
+    res.json({ itemId, entry: updated.practice[itemId] });
+  });
+
+  router.post("/:id/coach", async (req, res) => {
+    const { itemId, answer } = coachBody.parse(req.body ?? {});
+    const doc = await ownKit(req);
+    if (doc.status !== "ready") throw new HttpError(409, "NOT_READY", "This kit is not ready yet.");
+    const item = findPracticeItem(doc.kit, itemId);
+    if (!coachLimiter.take(String(req.user._id))) {
+      throw new HttpError(429, "COACH_LIMIT", "You have used the coach 30 times in the last hour. Try again a little later.");
+    }
+    const tested = doc.kit.role.requirements.filter((r) => item.requirement_ids.includes(r.id));
+    const feedback = await coachAnswer({ item, requirements: tested, answer, llm: coach.llm, model: coach.model });
+    res.json({ itemId, feedback });
+  });
+
   return router;
 }
+
+// Practice items are questions (prompt → outline) and flashcards (front → back).
+function findPracticeItem(kit, itemId) {
+  const question = kit.questions.find((q) => q.id === itemId);
+  if (question) return { prompt: question.prompt, outline: question.answer_outline, requirement_ids: question.requirement_ids };
+  const card = kit.flashcards.find((f) => f.id === itemId);
+  if (card) return { prompt: card.front, outline: card.back, requirement_ids: card.requirement_ids };
+  throw new HttpError(400, "INVALID_ITEM", "That card is no longer in this kit.");
+}
+
+// Item ids become part of a field path, so only q<n>/f<n> are accepted.
+const itemId = z.string().regex(/^[qf]\d{1,6}$/, "Unknown card.");
+const practiceBody = z.object({ itemId, confidence: z.union([z.literal(1), z.literal(2), z.literal(3)]) });
+const coachBody = z.object({ itemId, answer: z.string().trim().min(1, "Type an answer first.").max(ANSWER_MAX, `Answers are limited to ${ANSWER_MAX} characters.`) });
 
 const regenerateBody = z.discriminatedUnion("target", [
   z.object({ target: z.literal("brief"), confirm: z.boolean().optional() }),

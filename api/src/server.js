@@ -16,10 +16,12 @@ try {
 
 // One pipeline deps object for the whole process: the LLM client inside it holds
 // the per-model rate budget every generation shares (D5).
-const jobs = createJobRunner({ db, pipelineDeps: createPipelineDeps(config) });
+const pipelineDeps = createPipelineDeps(config);
+const jobs = createJobRunner({ db, pipelineDeps });
 const interrupted = await jobs.recoverOnBoot();
 if (interrupted > 0) console.log(`marked ${interrupted} unfinished generation(s) as interrupted`);
 
-createApp({ db, jobs, production: config.production }).listen(config.port, () => {
+const coach = { llm: pipelineDeps.llm, model: pipelineDeps.models.fast };
+createApp({ db, jobs, coach, production: config.production }).listen(config.port, () => {
   console.log(`api listening on http://localhost:${config.port}`);
 });

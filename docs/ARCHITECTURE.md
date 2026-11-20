@@ -60,11 +60,34 @@ Spec: [`specs/pipeline/SPEC.md`](specs/pipeline/SPEC.md). One function, `api/src
 
 ## Data model
 
-_Pending — brainstorm. Includes how generated, edited and pinned state is represented._
+MongoDB (D11), three collections; indexes declared in `api/src/db/mongo.js`.
+
+| Collection | Holds | Indexes |
+|---|---|---|
+| `users` | `email` (lower-case), `passwordHash` (`scrypt$salt$hash`), `createdAt` | `email` unique |
+| `sessions` | `_id` = SHA-256 of the cookie token, `userId`, `expiresAt` | TTL on `expiresAt` |
+| `kits` | `userId`, `status` (`generating` / `ready` / `failed` / `interrupted`), `input` `{ jd, company_url, days }`, `dedupeKey`, `progress[]`, `checkpoint` (saved step results, D12), `error`, `kit` (Appendix A + additive fields), `version`, `counters` `{ q, f }`, `dismissed` `{ category: [prompt] }`, `scheduleStale`, `regenerating` (lock), `lastRegeneration`, `practice` `{ itemId: { confidence, count, lastAt } }` | `userId, createdAt`; `userId, dedupeKey`; `userId` unique where `status: "generating"` |
+
+**Generated / edited / pinned (D8, D13).** Every question and flashcard carries `state` (`generated` | `edited` | `pinned`) and `origin` (`ai` | `user`); the brief carries `company_brief.field_state` per field. Editing a generated item makes it `edited`; pinning stores the previous state so unpinning restores it (an item edited while pinned returns to `edited`). Anything not `generated` is protected: a regeneration keeps it word for word, in its slot. Deleting an AI question records its prompt in `dismissed`, which the next regeneration of that category is told not to repeat. New items take ids from `counters`, so an id is never reused. `version` increases on every save; a write against an older version is refused.
 
 ## API
 
-_Pending._
+Express 5, everything under `/api` (the web app proxies `/api/*`, D10). Errors are `{ error: { code, message } }`.
+
+| Method | Path | What |
+|---|---|---|
+| GET | `/api/health` | liveness (also wakes the free instance) |
+| POST | `/api/auth/register`, `/api/auth/login`, `/api/auth/logout` | accounts; login sets the session cookie |
+| GET | `/api/auth/me` | the signed-in user; 401 `UNAUTHENTICATED` or `SESSION_EXPIRED` |
+| GET / POST | `/api/kits` | list; create (202, starts generation; 200 joins the same running one; 409 `DUPLICATE` / `GENERATION_RUNNING`; 429 `DAILY_LIMIT`) |
+| GET / DELETE | `/api/kits/:id` | the kit with status, progress, warnings, practice; delete |
+| POST | `/api/kits/:id/resume` | continue an interrupted or failed generation from its checkpoint |
+| POST | `/api/kits/:id/ops` | one builder operation `{ version, op }` (D13); 409 `VERSION_CONFLICT` with the latest kit |
+| POST | `/api/kits/:id/regenerate` | `{ target: "brief", confirm? }` or `{ target: "category", category }`; runs in the background, merges into the kit as it is then |
+| POST | `/api/kits/:id/practice` | `{ itemId, confidence: 1-3 }` |
+| POST | `/api/kits/:id/coach` | `{ itemId, answer }` → `{ covered, missed, improvement }` (D15) |
+
+Middleware order: JSON body (200 KB) → JSON-only mutations → `requireUser` on `/api/kits` → routes → error handler.
 
 ## Frontend
 
@@ -76,7 +99,12 @@ _Pending._
 
 ## Security
 
-_Pending._
+- **Untrusted text is data.** The posting, fetched pages, search results, and user-written kit text sent back to the model (regeneration avoid-lists, coach answers) are wrapped in `<untrusted_content>` with look-alike tags stripped; every system prompt carries the rule to treat them as data. Live test: injected instructions in a posting and on a company page left the kit unchanged.
+- **Fetching (D6).** URLs are normalised and checked; private, loopback and link-local addresses are refused in production, re-checked on every redirect; HTML only, 2 MB cap, 10 s timeout, robots.txt respected.
+- **Accounts (D10).** scrypt passwords; session tokens stored only as SHA-256; `httpOnly`, `SameSite=Lax`, `Secure` cookies; JSON-only mutations against CSRF; one message for wrong email or password.
+- **Authorisation.** Every kit query includes the user's id; another user's kit is "not found".
+- **Abuse limits.** One generating kit per user (database index), 10 new kits per day, 30 coach calls per hour, 200 KB bodies, length caps on every text field.
+- **Secrets.** Keys and the database URI come from environment variables; logs never include passwords, tokens, cookies, request bodies or the posting.
 
 ## Deployment
 

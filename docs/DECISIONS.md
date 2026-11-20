@@ -183,3 +183,27 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 **Considered:** `PUT` of the whole edited kit, with the server diffing old and new to work out states.
 
 **Why:** a diff has to guess intent (was this a move or an edit? a delete or a regeneration?) and would get the `dismissed` list wrong; a typed operation states it. One pure function makes every rule testable without HTTP or a database (12 tests), and the version check turns "two tabs, last write silently wins" into a visible reload. Warn mode follows the app spec: the user may delete the only question for a requirement; the builder shows the gap with a fix instead of refusing the save.
+
+---
+
+## D14 — Practice order: a weighted sort, not spaced repetition
+
+**Date:** 2026-11-20
+
+**Decision:** `orderDeck` (`shared/src/practice.js`, used by the API tests and the web app) sorts a session by: confidence ascending (unseen counts as least confident, then Again, Unsure, Got it), then must-have before nice, then the card practised longest ago, then the kit's order. Confidence, count and last-practised time are stored per card in the kit document's `practice` map, outside the kit itself, so recording practice never bumps the kit version or conflicts with builder saves.
+
+**Considered:** spaced repetition (Leitner boxes or SM-2 intervals).
+
+**Why:** spaced repetition schedules reviews days or weeks apart to build long-term memory; this user has a fixed, short horizon (often 1–7 days) and needs the weakest, most important material now, every session. A weighted sort is explainable in one line and testable without a clock simulation.
+
+---
+
+## D15 — Creative feature: the answer coach
+
+**Date:** 2026-11-20
+
+**Decision:** In practice, the candidate can type an answer before revealing the outline. `POST /api/kits/:id/coach` sends the question, the outline, the requirements it tests and the answer (the user-written parts wrapped as untrusted content) to the fast model, which returns `covered` (up to 4), `missed` (up to 4) and one `improvement`: a single sentence picking one missed point. It never writes a model answer. Limited to 30 calls per user per hour (in memory; one instance).
+
+**Considered:** a per-requirement readiness map; a timed mock-interview mode.
+
+**Why:** practice in the brief is "read the card, self-grade"; an interview needs rehearsal, saying an answer and finding out what it lacked. The readiness map overlaps the required "covered vs not" view, and a timed mode is mostly a timer. One small fast-model call (~1 second) per use fits the shared budget. Live tuning: the first prompt's "improvement" listed the whole outline, which hands the candidate the answer; it is now constrained to one missed point.

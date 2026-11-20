@@ -44,6 +44,7 @@ export function fakeLlm({ requirements = REQUIREMENTS, questions, failLabel, gat
         const list = questions ? questions(label, ids) : ids.map((id) => ({ prompt: `About ${id} (${label})?`, answer_outline: "a; b", difficulty: 2, requirement_ids: [id] }));
         return reply({ questions: list });
       }
+      if (label === "answer coach") return reply({ covered: ["Named the event loop phases"], missed: ["Backpressure"], improvement: "Add one production example." });
       if (label === "flashcards") return reply({ flashcards: [{ front: "Event loop?", back: "Phases.", requirement_ids: ["r1"] }] });
       throw new Error(`unexpected call ${label}`);
     },
