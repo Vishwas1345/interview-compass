@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { post } from "@/lib/api";
-import { Alert, Button, ButtonLink, Dialog, Spinner } from "@/components/ui";
+import { Alert, Button, Dialog, Spinner } from "@/components/ui";
 import { Toasts, useToasts } from "@/components/builder/toasts";
 import { QuestionsTab, CATEGORY_LABELS } from "@/components/builder/questions-tab";
 import { CoverageTab } from "@/components/builder/coverage-tab";
@@ -11,22 +11,17 @@ import { FlashcardsTab } from "@/components/builder/flashcards-tab";
 import { ScheduleTab } from "@/components/builder/schedule-tab";
 import { BriefTab } from "@/components/builder/brief-tab";
 import { ResearchTab } from "@/components/builder/research-tab";
+import { KIT_SECTIONS } from "@/components/app-shell";
 
-const TABS = [
-  { id: "questions", label: "Questions" },
-  { id: "coverage", label: "Requirements & coverage" },
-  { id: "flashcards", label: "Flashcards" },
-  { id: "schedule", label: "Schedule" },
-  { id: "brief", label: "Company brief" },
-  { id: "research", label: "Research" },
-];
 const UNDO_MS = 5000;
 
-export function KitBuilder({ doc, runOp, replace, onDelete }) {
+export function KitBuilder({ doc, runOp, replace }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const tab = TABS.some((t) => t.id === params.get("tab")) ? params.get("tab") : params.get("setDays") ? "schedule" : "questions";
+  // The section comes from the sidebar's links (?tab=); ?setDays= opens the schedule.
+  const tab = KIT_SECTIONS.some((t) => t.id === params.get("tab")) ? params.get("tab") : params.get("setDays") ? "schedule" : "questions";
+  const section = KIT_SECTIONS.find((t) => t.id === tab);
   const { toasts, show, dismiss } = useToasts();
   const [confirmBrief, setConfirmBrief] = useState(false);
   const [addFor, setAddFor] = useState(null); // { category, requirementId } to open the add form
@@ -164,27 +159,11 @@ export function KitBuilder({ doc, runOp, replace, onDelete }) {
         )}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <label className="sr-only" htmlFor="tab-select">Section</label>
-        <select id="tab-select" value={tab} onChange={(e) => selectTab(e.target.value)} className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm sm:hidden">
-          {TABS.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-        <TabList tab={tab} onSelect={selectTab} />
-        <div className="flex gap-2 sm:ml-auto">
-          <ButtonLink href={`/kits/${doc.id}/practice`} size="sm">
-            Practise
-          </ButtonLink>
-          <Button size="sm" variant="ghost" onClick={onDelete}>
-            Delete kit
-          </Button>
-        </div>
-      </div>
+      <h2 className="mt-6 flex items-center gap-2 text-lg font-semibold text-zinc-900">
+        <section.Icon className="h-5 w-5 text-indigo-600" /> {section.label}
+      </h2>
 
-      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mt-4">
+      <div className="mt-3">
         {tab === "questions" && <QuestionsTab ctx={ctx} />}
         {tab === "coverage" && <CoverageTab ctx={ctx} />}
         {tab === "flashcards" && <FlashcardsTab ctx={ctx} />}
@@ -209,42 +188,6 @@ export function KitBuilder({ doc, runOp, replace, onDelete }) {
         A new brief is written from the pages found during research. Edited fields are replaced; pinned fields are always kept.
       </Dialog>
       <Toasts toasts={toasts} dismiss={dismiss} />
-    </div>
-  );
-}
-
-// Tabs with arrow-key navigation (WAI-ARIA tabs pattern). Hidden on phones, where the
-// select above takes over.
-function TabList({ tab, onSelect }) {
-  const refs = useRef({});
-  function onKeyDown(e) {
-    const index = TABS.findIndex((t) => t.id === tab);
-    const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
-    if (e.key === "Home" || e.key === "End" || step) {
-      e.preventDefault();
-      const next = e.key === "Home" ? TABS[0] : e.key === "End" ? TABS.at(-1) : TABS[(index + step + TABS.length) % TABS.length];
-      onSelect(next.id);
-      refs.current[next.id]?.focus();
-    }
-  }
-  return (
-    <div role="tablist" aria-label="Kit sections" onKeyDown={onKeyDown} className="hidden flex-wrap gap-1 rounded-lg bg-zinc-100 p-1 sm:flex">
-      {TABS.map((t) => (
-        <button
-          key={t.id}
-          ref={(el) => (refs.current[t.id] = el)}
-          id={`tab-${t.id}`}
-          role="tab"
-          type="button"
-          aria-selected={tab === t.id}
-          aria-controls={`panel-${t.id}`}
-          tabIndex={tab === t.id ? 0 : -1}
-          onClick={() => onSelect(t.id)}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium ${tab === t.id ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-600 hover:text-zinc-900"}`}
-        >
-          {t.label}
-        </button>
-      ))}
     </div>
   );
 }

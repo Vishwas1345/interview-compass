@@ -148,3 +148,19 @@ export function Dialog({ open, onClose, title, children, actions }) {
     </dialog>
   );
 }
+
+// A square icon button; `label` is both its accessible name and its tooltip.
+export function IconButton({ label, children, className = "", pressed, ...props }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      aria-pressed={pressed}
+      className={`grid h-8 w-8 place-items-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-30 ${pressed ? "bg-amber-50 text-amber-700" : ""} ${className}`}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}

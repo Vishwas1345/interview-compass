@@ -483,3 +483,18 @@ test("the coach is limited to 30 calls per user per hour", async () => {
   clock.advance(60 * 60 * 1000 + 1);
   assert.equal((await b.post(`/api/kits/${kit.id}/coach`, { itemId: q.id, answer: "x" })).status, 200);
 });
+
+test("the kit list carries counts computed by the database, including practice", async () => {
+  const { b, kit } = await readyKit(50);
+  await b.post(`/api/kits/${kit.id}/practice`, { itemId: kit.kit.questions[0].id, confidence: 3 });
+  await b.post(`/api/kits/${kit.id}/practice`, { itemId: kit.kit.questions[1].id, confidence: 1 });
+  const [summary] = (await b.get("/api/kits")).body.kits;
+  assert.deepEqual(summary.counts, {
+    requirements: 3,
+    musts: 2,
+    questions: kit.kit.questions.length,
+    flashcards: kit.kit.flashcards.length,
+    gotIt: 1,
+  });
+  assert.equal(summary.kit, undefined, "the list never carries whole kits");
+});

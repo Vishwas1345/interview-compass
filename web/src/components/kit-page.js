@@ -9,6 +9,8 @@ import { ProgressView } from "@/components/progress-view";
 import { StatusBadge } from "@/components/status-badge";
 import { KitBuilder } from "@/components/builder/kit-builder";
 import { Alert, Button, ButtonLink, Dialog, EmptyState, Skeleton } from "@/components/ui";
+import { IconTrash } from "@/components/icons";
+import { CONFIDENCE } from "@interview-compass/shared";
 
 export function KitPage() {
   return (
@@ -52,21 +54,28 @@ function KitPageInner() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-start gap-3">
+      <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-2xl font-semibold tracking-tight">{kit.role || (kit.status === "ready" ? "Untitled role" : "New kit")}</h1>
-          <p className="text-sm text-zinc-600">
-            {kit.company} · {kit.days} {kit.days === 1 ? "day" : "days"}
-            {kit.kit && ` · ${kit.kit.role.requirements.length} requirements · ${kit.kit.questions.length} questions · ${kit.kit.flashcards.length} flashcards`}
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="truncate text-2xl font-semibold tracking-tight text-zinc-900">{kit.role || (kit.status === "ready" ? "Untitled role" : "New kit")}</h1>
+            <StatusBadge status={kit.status} />
+          </div>
+          <p className="mt-0.5 text-sm text-zinc-600">
+            {kit.company} · {kit.days} {kit.days === 1 ? "day" : "days"} · created {new Date(kit.createdAt).toLocaleDateString()}
           </p>
         </div>
-        <StatusBadge status={kit.status} />
+        <Button size="sm" variant="ghost" className="text-zinc-500 hover:text-red-700" onClick={() => setConfirmDelete(true)}>
+          <IconTrash /> Delete kit
+        </Button>
       </div>
-      {deleteError && <Alert className="mb-3">{deleteError}</Alert>}
+      {kit.status === "ready" && <KitStats doc={kit} />}
+      {deleteError && <Alert className="mt-3">{deleteError}</Alert>}
       {kit.status === "ready" ? (
-        <KitBuilder doc={kit} runOp={runOp} replace={replace} onDelete={() => setConfirmDelete(true)} />
+        <KitBuilder doc={kit} runOp={runOp} replace={replace} />
       ) : (
-        <ProgressView kit={kit} onChange={replace} />
+        <div className="mt-6">
+          <ProgressView kit={kit} onChange={replace} />
+        </div>
       )}
       <Dialog
         open={confirmDelete}
@@ -99,5 +108,40 @@ function BuilderSkeleton() {
         <Skeleton key={i} className="h-28 w-full" />
       ))}
     </div>
+  );
+}
+
+// The kit at a glance: what the posting asks for, how much of it is covered, how
+// much there is to do, and how far practice has got.
+function KitStats({ doc }) {
+  const { kit, practice = {} } = doc;
+  const musts = kit.role.requirements.filter((r) => r.priority === "must");
+  const covered = musts.filter((r) => kit.questions.some((q) => q.requirement_ids.includes(r.id))).length;
+  const cards = [...kit.questions, ...kit.flashcards];
+  const gotIt = cards.filter((c) => practice[c.id]?.confidence === CONFIDENCE.GOT_IT).length;
+  const minutes = kit.schedule.days.reduce((sum, d) => sum + d.minutes, 0);
+  const categories = new Set(kit.questions.map((q) => q.category)).size;
+  const stats = [
+    { label: "Requirements", value: kit.role.requirements.length, detail: `${musts.length} must-have` },
+    { label: "Must-haves covered", value: `${covered}/${musts.length}`, detail: covered === musts.length ? "every one has a question" : `${musts.length - covered} without a question`, tone: covered === musts.length ? "good" : "warn" },
+    { label: "Questions", value: kit.questions.length, detail: `${categories} categor${categories === 1 ? "y" : "ies"} · ${kit.flashcards.length} flashcards` },
+    { label: "Schedule", value: `${kit.schedule.days.length} day${kit.schedule.days.length === 1 ? "" : "s"}`, detail: `about ${Math.max(1, Math.round(minutes / 60))} h in total` },
+    { label: "Practised", value: `${gotIt}/${cards.length}`, detail: "cards marked Got it", progress: cards.length ? gotIt / cards.length : 0 },
+  ];
+  return (
+    <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      {stats.map((s) => (
+        <div key={s.label} className="rounded-lg border border-zinc-200 bg-white px-4 py-3">
+          <dt className="text-xs font-medium text-zinc-500">{s.label}</dt>
+          <dd className={`mt-1 text-xl font-semibold ${s.tone === "warn" ? "text-amber-700" : s.tone === "good" ? "text-emerald-700" : "text-zinc-900"}`}>{s.value}</dd>
+          <dd className="truncate text-xs text-zinc-500">{s.detail}</dd>
+          {s.progress !== undefined && (
+            <dd className="mt-2 h-1 overflow-hidden rounded-full bg-zinc-100" aria-hidden="true">
+              <div className="h-full bg-indigo-500" style={{ width: `${s.progress * 100}%` }} />
+            </dd>
+          )}
+        </div>
+      ))}
+    </dl>
   );
 }

@@ -34,6 +34,7 @@ export function kitSummary(doc) {
     role: doc.kit?.role.title || "",
     days: doc.input.days,
     createdAt: doc.createdAt,
+    ...(doc.counts ? { counts: doc.counts } : {}),
   };
 }
 
@@ -79,8 +80,29 @@ export function kitRoutes({ db, jobs, coach, now = () => new Date() }) {
   };
 
   router.get("/", async (req, res) => {
+    // Counts are computed by MongoDB (projection expressions), so the list never
+    // loads whole kits: a few bytes per kit instead of ~50 KB.
+    const size = (path) => ({ $size: { $ifNull: [path, []] } });
     const docs = await kits
-      .find({ userId: req.user._id }, { projection: { status: 1, input: 1, createdAt: 1, "kit.source.company": 1, "kit.role.title": 1 } })
+      .find(
+        { userId: req.user._id },
+        {
+          projection: {
+            status: 1,
+            input: 1,
+            createdAt: 1,
+            "kit.source.company": 1,
+            "kit.role.title": 1,
+            counts: {
+              requirements: size("$kit.role.requirements"),
+              musts: { $size: { $filter: { input: { $ifNull: ["$kit.role.requirements", []] }, cond: { $eq: ["$$this.priority", "must"] } } } },
+              questions: size("$kit.questions"),
+              flashcards: size("$kit.flashcards"),
+              gotIt: { $size: { $filter: { input: { $objectToArray: { $ifNull: ["$practice", {}] } }, cond: { $eq: ["$$this.v.confidence", 3] } } } },
+            },
+          },
+        },
+      )
       .sort({ createdAt: -1 })
       .limit(200)
       .toArray();

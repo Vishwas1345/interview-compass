@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { post } from "@/lib/api";
 import { Alert, Button, Card, Spinner } from "@/components/ui";
 
@@ -33,6 +33,9 @@ export function ProgressView({ kit, onChange }) {
   const states = stepStates(kit.progress);
   const logs = kit.progress.filter((p) => p.step === "log" && p.message);
   const generating = kit.status === "generating";
+  const startedAt = [...kit.progress].reverse().find((p) => p.step === "resumed")?.at ?? kit.createdAt;
+  const elapsed = useElapsed(startedAt, generating);
+  const doneCount = STEPS.filter(({ step }) => ["done", "reused"].includes(states.get(step)?.status)).length;
 
   async function resume() {
     setBusy(true);
@@ -60,17 +63,30 @@ export function ProgressView({ kit, onChange }) {
       )}
       {error && <Alert className="mt-3">{error}</Alert>}
       <Card className="mt-4 p-5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-semibold">{generating ? "Building your kit" : "Progress"}</h2>
-          {generating && <span className="text-xs text-zinc-500">Usually 1–2 minutes. You can leave this page.</span>}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">{generating ? "Building your kit" : "Progress"}</h2>
+            {generating && <p className="text-xs text-zinc-500">Usually 1–2 minutes. You can leave this page; it keeps going.</p>}
+          </div>
+          {generating && (
+            <span className="rounded-full bg-indigo-50 px-2.5 py-1 font-mono text-xs text-indigo-800" aria-label={`Elapsed ${elapsed}`}>
+              {elapsed}
+            </span>
+          )}
         </div>
-        <ol className="mt-4 space-y-3" aria-live="polite">
+        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-zinc-100" aria-hidden="true">
+          <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${(doneCount / STEPS.length) * 100}%` }} />
+        </div>
+        <p className="sr-only">
+          {doneCount} of {STEPS.length} steps done
+        </p>
+        <ol className="relative mt-5 space-y-4 before:absolute before:bottom-2 before:left-[9px] before:top-2 before:w-px before:bg-zinc-200" aria-live="polite">
           {STEPS.map(({ step, label, logs: prefixes }) => {
             const state = states.get(step);
             const status = state?.status ?? "pending";
             const lines = logs.filter((l) => prefixes.some((p) => l.message.startsWith(p)));
             return (
-              <li key={step} className="flex gap-3">
+              <li key={step} className="relative flex gap-3">
                 <StepIcon status={status} active={generating} />
                 <div className="min-w-0 flex-1">
                   <p className={`text-sm ${status === "pending" ? "text-zinc-500" : "text-zinc-900"}`}>
@@ -100,17 +116,29 @@ export function ProgressView({ kit, onChange }) {
 function StepIcon({ status, active }) {
   if (status === "done" || status === "reused") {
     return (
-      <span aria-label={status} className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-600 text-[11px] text-white">
+      <span aria-label={status} className="relative mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-600 text-[11px] text-white">
         ✓
       </span>
     );
   }
   if (status === "started" && active) {
     return (
-      <span aria-label="in progress" className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center text-indigo-600">
+      <span aria-label="in progress" className="relative mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-white text-indigo-600">
         <Spinner />
       </span>
     );
   }
-  return <span aria-label="not started" className="mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-zinc-300" />;
+  return <span aria-label="not started" className="relative mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-zinc-300 bg-white" />;
+}
+
+// "1:07" since the run started, ticking while it runs.
+function useElapsed(since, running) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!running) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [running]);
+  const seconds = Math.max(0, Math.floor((now - new Date(since).getTime()) / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }

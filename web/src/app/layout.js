@@ -1,6 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import { SessionProvider, WakeBanner } from "@/components/session";
-import { AppHeader } from "@/components/app-header";
+import { AppShell } from "@/components/app-shell";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -20,10 +20,7 @@ export default function RootLayout({ children }) {
         </a>
         <SessionProvider>
           <WakeBanner />
-          <AppHeader />
-          <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:py-8">
-            {children}
-          </main>
+          <AppShell>{children}</AppShell>
         </SessionProvider>
       </body>
     </html>

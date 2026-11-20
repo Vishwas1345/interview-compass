@@ -3,11 +3,19 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { QUESTION_CATEGORIES } from "@interview-compass/shared";
 import { moveInList } from "@/lib/local-ops";
-import { Button, Card, Dialog, EmptyState, Field } from "@/components/ui";
+import { Button, Card, Dialog, EmptyState, Field, IconButton } from "@/components/ui";
+import { IconArrowDown, IconArrowUp, IconPin, IconPlus, IconRefresh, IconTrash } from "@/components/icons";
 import { InlineEdit } from "@/components/builder/inline-edit";
 import { ItemState } from "@/components/builder/item-state";
 
 export const CATEGORY_LABELS = { technical: "Technical", behavioural: "Behavioural", "system-design": "System design", "company-fit": "Company fit" };
+// One colour per category: the card's left edge and the section dot.
+export const CATEGORY_COLORS = {
+  technical: { edge: "border-l-indigo-500", dot: "bg-indigo-500" },
+  behavioural: { edge: "border-l-emerald-500", dot: "bg-emerald-500" },
+  "system-design": { edge: "border-l-violet-500", dot: "bg-violet-500" },
+  "company-fit": { edge: "border-l-amber-500", dot: "bg-amber-500" },
+};
 const DIFFICULTY = { 1: "Fundamentals", 2: "Applied", 3: "Deep" };
 
 export function QuestionsTab({ ctx }) {
@@ -17,7 +25,7 @@ export function QuestionsTab({ ctx }) {
   const planReason = Object.fromEntries((kit.question_plan ?? []).map((p) => [p.category, p.reason]));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       {QUESTION_CATEGORIES.map((category) => {
         const questions = visible.filter((q) => q.category === category);
         const protectedCount = questions.filter((q) => (q.state ?? "generated") !== "generated").length;
@@ -25,17 +33,18 @@ export function QuestionsTab({ ctx }) {
           <section key={category} aria-labelledby={`cat-${category}`}>
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div>
-                <h2 id={`cat-${category}`} className="text-lg font-semibold">
-                  {CATEGORY_LABELS[category]} <span className="text-sm font-normal text-zinc-500">({questions.length})</span>
-                </h2>
-                {planReason[category] && <p className="text-xs text-zinc-500">Why: {planReason[category]}</p>}
+                <h3 id={`cat-${category}`} className="flex items-center gap-2 font-semibold text-zinc-900">
+                  <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full ${CATEGORY_COLORS[category].dot}`} />
+                  {CATEGORY_LABELS[category]} <span className="text-sm font-normal text-zinc-500">{questions.length}</span>
+                </h3>
+                {planReason[category] && <p className="ml-[18px] text-xs text-zinc-500">Why: {planReason[category]}</p>}
               </div>
               <div className="flex gap-2">
                 <Button size="sm" variant="secondary" onClick={() => setAddFor({ category })}>
-                  Add question
+                  <IconPlus /> Add
                 </Button>
                 <Button size="sm" variant="secondary" disabled={Boolean(doc.regenerating)} onClick={() => setConfirmCategory({ category, protectedCount, total: questions.length })}>
-                  Regenerate
+                  <IconRefresh /> Regenerate
                 </Button>
               </div>
             </div>
@@ -45,7 +54,7 @@ export function QuestionsTab({ ctx }) {
                 <EmptyState title={`No ${CATEGORY_LABELS[category].toLowerCase()} questions`}>Add your own, or regenerate this category.</EmptyState>
               </div>
             ) : (
-              <ol className="mt-3 space-y-3">
+              <ol className="mt-2.5 space-y-2">
                 {questions.map((q, index) => (
                   <li key={q.id} id={q.id}>
                     <QuestionCard ctx={ctx} question={q} ids={questions.map((x) => x.id)} position={index + 1} />
@@ -85,6 +94,7 @@ export function QuestionsTab({ ctx }) {
 
 function QuestionCard({ ctx, question: q, ids, position }) {
   const { kit, act, deleteLater } = ctx;
+  const [showOutline, setShowOutline] = useState(false);
   const requirements = kit.role.requirements;
   const pinned = q.state === "pinned";
   const move = (delta) => {
@@ -93,78 +103,83 @@ function QuestionCard({ ctx, question: q, ids, position }) {
   };
 
   return (
-    <Card className="p-4">
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="font-mono text-zinc-400">{position}.</span>
-        <ItemState state={q.state} origin={q.origin} />
-        {q.fallback && <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-600" title="Added by code because the model left this must-have uncovered">fallback</span>}
-        <label className="sr-only" htmlFor={`diff-${q.id}`}>Difficulty</label>
-        <select
-          id={`diff-${q.id}`}
-          value={q.difficulty}
-          onChange={(e) => act({ type: "updateQuestion", id: q.id, fields: { difficulty: Number(e.target.value) } })}
-          className="rounded border border-zinc-200 bg-white px-1 py-0.5 text-xs"
-        >
-          {[1, 2, 3].map((d) => (
-            <option key={d} value={d}>
-              {d} · {DIFFICULTY[d]}
-            </option>
-          ))}
-        </select>
-        {q.requirement_ids.map((id) => {
-          const r = requirements.find((x) => x.id === id);
-          return (
-            <span key={id} title={r?.text} className={`max-w-[16rem] truncate rounded-full px-2 py-0.5 ${r?.priority === "must" ? "bg-indigo-50 text-indigo-800" : "bg-zinc-100 text-zinc-700"}`}>
-              {r?.text ?? id}
-            </span>
-          );
-        })}
-      </div>
-      <InlineEdit label="Question" value={q.prompt} onSave={(prompt) => act({ type: "updateQuestion", id: q.id, fields: { prompt } })} className="mt-2" textClassName="font-medium text-zinc-900" />
-      <details className="mt-2 group">
-        <summary className="cursor-pointer rounded px-2 text-sm text-indigo-700 hover:underline">Answer outline</summary>
-        <InlineEdit
-          label="Answer outline"
-          value={q.answer_outline}
-          allowEmpty
-          placeholder="No outline yet. Click to add one."
-          onSave={(answer_outline) => act({ type: "updateQuestion", id: q.id, fields: { answer_outline } })}
-          className="mt-1"
-          textClassName="text-sm text-zinc-700"
-        />
-      </details>
-      <RequirementPicker
-        requirements={requirements}
-        selected={q.requirement_ids}
-        onChange={(requirement_ids) => act({ type: "updateQuestion", id: q.id, fields: { requirement_ids } })}
-      />
-      <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-zinc-100 pt-3">
-        <Button size="sm" variant="ghost" aria-label={`Move question ${position} up`} disabled={position === 1} onClick={() => move(-1)}>
-          ↑ Up
-        </Button>
-        <Button size="sm" variant="ghost" aria-label={`Move question ${position} down`} disabled={position === ids.length} onClick={() => move(1)}>
-          ↓ Down
-        </Button>
-        <label className="sr-only" htmlFor={`move-${q.id}`}>Move to category</label>
-        <select
-          id={`move-${q.id}`}
-          value=""
-          onChange={(e) => e.target.value && act({ type: "moveQuestion", id: q.id, category: e.target.value })}
-          className="rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-700"
-        >
-          <option value="">Move to…</option>
-          {QUESTION_CATEGORIES.filter((c) => c !== q.category).map((c) => (
-            <option key={c} value={c}>
-              {CATEGORY_LABELS[c]}
-            </option>
-          ))}
-        </select>
-        <Button size="sm" variant="ghost" aria-pressed={pinned} onClick={() => act({ type: "setPinned", target: "question", id: q.id, pinned: !pinned })}>
-          {pinned ? "Unpin" : "Pin"}
-        </Button>
-        <Button size="sm" variant="ghost" className="ml-auto text-red-700" onClick={() => deleteLater("question", q.id, `question ${position}`)}>
-          Delete
-        </Button>
+    <Card className={`border-l-4 px-3 py-2.5 sm:px-4 ${CATEGORY_COLORS[q.category].edge}`}>
+      <div className="flex items-start gap-2">
+        <span className="mt-1.5 w-5 shrink-0 text-right font-mono text-xs text-zinc-400">{position}</span>
+        <div className="min-w-0 flex-1">
+          <InlineEdit label="Question" value={q.prompt} onSave={(prompt) => act({ type: "updateQuestion", id: q.id, fields: { prompt } })} textClassName="font-medium text-zinc-900" />
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 px-2 text-xs">
+            <ItemState state={q.state} origin={q.origin} />
+            {q.fallback && <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-600" title="Added by code because the model left this must-have uncovered">fallback</span>}
+            <label className="sr-only" htmlFor={`diff-${q.id}`}>Difficulty</label>
+            <select
+              id={`diff-${q.id}`}
+              value={q.difficulty}
+              onChange={(e) => act({ type: "updateQuestion", id: q.id, fields: { difficulty: Number(e.target.value) } })}
+              className="rounded border border-zinc-200 bg-white px-1 py-0.5 text-xs text-zinc-700"
+            >
+              {[1, 2, 3].map((d) => (
+                <option key={d} value={d}>
+                  {DIFFICULTY[d]}
+                </option>
+              ))}
+            </select>
+            {q.requirement_ids.map((id) => {
+              const r = requirements.find((x) => x.id === id);
+              return (
+                <span key={id} title={r?.text} className={`max-w-[14rem] truncate rounded-full px-2 py-0.5 ${r?.priority === "must" ? "bg-indigo-50 text-indigo-800" : "bg-zinc-100 text-zinc-700"}`}>
+                  {r?.text ?? id}
+                </span>
+              );
+            })}
+            <button type="button" onClick={() => setShowOutline((v) => !v)} aria-expanded={showOutline} className="ml-auto rounded px-1 font-medium text-indigo-700 hover:underline">
+              {showOutline ? "Hide outline" : "Show outline"}
+            </button>
+          </div>
+          {showOutline && (
+            <div className="mt-1.5">
+              <InlineEdit
+                label="Answer outline"
+                value={q.answer_outline}
+                allowEmpty
+                placeholder="No outline yet. Click to add one."
+                onSave={(answer_outline) => act({ type: "updateQuestion", id: q.id, fields: { answer_outline } })}
+                textClassName="text-sm text-zinc-700 bg-zinc-50"
+              />
+              <RequirementPicker requirements={requirements} selected={q.requirement_ids} onChange={(requirement_ids) => act({ type: "updateQuestion", id: q.id, fields: { requirement_ids } })} />
+            </div>
+          )}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-0.5 sm:flex-row sm:items-center">
+          <div className="flex">
+            <IconButton label={`Move question ${position} up`} disabled={position === 1} onClick={() => move(-1)}>
+              <IconArrowUp />
+            </IconButton>
+            <IconButton label={`Move question ${position} down`} disabled={position === ids.length} onClick={() => move(1)}>
+              <IconArrowDown />
+            </IconButton>
+            <IconButton label={pinned ? "Unpin" : "Pin: keep exactly as it is"} pressed={pinned} onClick={() => act({ type: "setPinned", target: "question", id: q.id, pinned: !pinned })}>
+              <IconPin />
+            </IconButton>
+            <IconButton label={`Delete question ${position}`} className="hover:bg-red-50 hover:text-red-700" onClick={() => deleteLater("question", q.id, `question ${position}`)}>
+              <IconTrash />
+            </IconButton>
+          </div>
+          <label className="sr-only" htmlFor={`move-${q.id}`}>Move to category</label>
+          <select
+            id={`move-${q.id}`}
+            value=""
+            onChange={(e) => e.target.value && act({ type: "moveQuestion", id: q.id, category: e.target.value })}
+            className="h-8 rounded-md border border-zinc-200 bg-white px-1.5 text-xs text-zinc-600"
+          >
+            <option value="">Move…</option>
+            {QUESTION_CATEGORIES.filter((c) => c !== q.category).map((c) => (
+              <option key={c} value={c}>
+                {CATEGORY_LABELS[c]}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
     </Card>
   );

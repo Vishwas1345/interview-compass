@@ -5,7 +5,8 @@ import Link from "next/link";
 import { del, get } from "@/lib/api";
 import { RequireAuth } from "@/components/session";
 import { StatusBadge } from "@/components/status-badge";
-import { Alert, Button, ButtonLink, Card, Dialog, EmptyState, Skeleton } from "@/components/ui";
+import { Alert, Button, ButtonLink, Dialog, EmptyState, IconButton, Skeleton } from "@/components/ui";
+import { IconPlus, IconTrash } from "@/components/icons";
 
 export function KitList() {
   return (
@@ -56,8 +57,15 @@ function KitListInner() {
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">My kits</h1>
-        {kits?.length > 0 && <ButtonLink href="/kits/new">New kit</ButtonLink>}
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">My kits</h1>
+          {kits?.length > 0 && <p className="mt-0.5 text-sm text-zinc-600">{kits.length} kit{kits.length === 1 ? "" : "s"}. Open one to edit it or practise.</p>}
+        </div>
+        {kits?.length > 0 && (
+          <ButtonLink href="/kits/new">
+            <IconPlus /> New kit
+          </ButtonLink>
+        )}
       </div>
       <div className="mt-6">
         {error && (
@@ -72,21 +80,10 @@ function KitListInner() {
           </EmptyState>
         )}
         {kits?.length > 0 && (
-          <ul className="space-y-2">
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {kits.map((kit) => (
               <li key={kit.id}>
-                <Card className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-                  <Link href={`/kits/${kit.id}`} className="min-w-0 flex-1 rounded">
-                    <p className="truncate font-medium text-zinc-900">{kit.role || "Untitled role"}</p>
-                    <p className="truncate text-sm text-zinc-600">
-                      {kit.company} · {kit.days} {kit.days === 1 ? "day" : "days"} · {new Date(kit.createdAt).toLocaleDateString()}
-                    </p>
-                  </Link>
-                  <StatusBadge status={kit.status} />
-                  <Button variant="ghost" size="sm" onClick={() => setToDelete(kit)} aria-label={`Delete kit for ${kit.role || kit.company}`}>
-                    Delete
-                  </Button>
-                </Card>
+                <KitCard kit={kit} onDelete={() => setToDelete(kit)} />
               </li>
             ))}
           </ul>
@@ -117,11 +114,54 @@ function KitListInner() {
   );
 }
 
+function KitCard({ kit, onDelete }) {
+  const c = kit.counts;
+  const cards = c ? c.questions + c.flashcards : 0;
+  return (
+    <div className="group relative flex h-full flex-col rounded-lg border border-zinc-200 bg-white p-4 transition hover:border-indigo-300 hover:shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <StatusBadge status={kit.status} />
+        <IconButton label={`Delete kit for ${kit.role || kit.company}`} className="relative z-10 -mr-1 -mt-1 hover:bg-red-50 hover:text-red-700" onClick={onDelete}>
+          <IconTrash />
+        </IconButton>
+      </div>
+      {/* The whole card is the link; the delete button sits above it. */}
+      <Link href={`/kits/${kit.id}`} className="mt-2 rounded after:absolute after:inset-0 after:content-['']">
+        <p className="truncate font-semibold text-zinc-900">{kit.role || (kit.status === "ready" ? "Untitled role" : "Generating…")}</p>
+        <p className="truncate text-sm text-zinc-600">{kit.company}</p>
+      </Link>
+      {kit.status === "ready" && c ? (
+        <>
+          <p className="mt-3 text-xs text-zinc-600">
+            {c.requirements} requirements · {c.questions} questions · {kit.days} {kit.days === 1 ? "day" : "days"}
+          </p>
+          <div className="mt-3">
+            <div className="flex justify-between text-[11px] text-zinc-500">
+              <span>Practised</span>
+              <span>
+                {c.gotIt}/{cards} got it
+              </span>
+            </div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-100" aria-hidden="true">
+              <div className="h-full bg-indigo-500" style={{ width: `${cards ? (c.gotIt / cards) * 100 : 0}%` }} />
+            </div>
+          </div>
+        </>
+      ) : (
+        <p className="mt-3 text-xs text-zinc-500">
+          {kit.days} {kit.days === 1 ? "day" : "days"} · {kit.status === "generating" ? "building now" : "open it to see why"}
+        </p>
+      )}
+      <p className="mt-auto pt-3 text-[11px] text-zinc-400">Created {new Date(kit.createdAt).toLocaleDateString()}</p>
+    </div>
+  );
+}
+
 function ListSkeleton({ bare = false }) {
   return (
-    <div className={bare ? "space-y-2" : "space-y-2 pt-14"} aria-label="Loading kits">
+    <div className={`grid gap-3 sm:grid-cols-2 xl:grid-cols-3 ${bare ? "" : "pt-14"}`} aria-label="Loading kits">
       {[0, 1, 2].map((i) => (
-        <Skeleton key={i} className="h-16 w-full" />
+        <Skeleton key={i} className="h-40 w-full" />
       ))}
     </div>
   );
