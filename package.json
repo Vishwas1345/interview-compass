@@ -1,0 +1,21 @@
+{
+  "name": "trao-interview-prep-kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Turn a job description into a personalised interview prep kit.",
+  "workspaces": [
+    "shared",
+    "api",
+    "web"
+  ],
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "dev:api": "npm run dev -w @trao/api",
+    "dev:web": "npm run dev -w @trao/web",
+    "evaluate": "node --env-file-if-exists=.env api/src/cli/evaluate.js",
+    "test": "npm test -w @trao/api",
+    "lint": "npm run lint -w @trao/web"
+  }
+}

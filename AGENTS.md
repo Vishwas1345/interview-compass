@@ -12,6 +12,10 @@ AI Interview Prep Kit: a take-home assessment for Trao. A user pastes a job desc
 | [`docs/GAPS.md`](docs/GAPS.md) | Finding an open question, a known limitation, or a requirement not yet covered. Append to it the moment one appears. |
 | `docs/specs/<feature>/` | Building a feature: `SPEC.md` (what and why) and `PLAN.md` (steps, local only). |
 
+## Frontend gotcha
+
+`web/` runs Next.js 16, whose APIs differ from most training data. Read [`web/AGENTS.md`](web/AGENTS.md) and the guide in `web/node_modules/next/dist/docs/` before writing frontend code.
+
 ## Workflow: spec-driven
 
 Spec → plan → build, one phase at a time. Each gate waits for Vishwas's approval.

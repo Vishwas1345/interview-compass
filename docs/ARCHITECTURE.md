@@ -8,7 +8,33 @@ _Pending — brainstorm._
 
 ## Repository layout
 
-_Pending — brainstorm._
+npm workspaces (see D2). One `npm install` at the root installs all three.
+
+```
+trao-assignment/
+├── package.json          workspaces; root scripts: evaluate, test, lint, dev:api, dev:web
+├── .env.example          every env var, documented
+├── shared/               @trao/shared — the kit contract (Appendix A), used by api and web
+│   └── src/index.js
+├── api/                  @trao/api — Express server, pipeline, batch CLI
+│   ├── src/
+│   │   ├── app.js        builds the Express app (no listen — tests mount it)
+│   │   ├── server.js     listens on PORT
+│   │   ├── pipeline/     one folder per concern; the CLI and the routes call the same code
+│   │   │   ├── retrieval/    fetch, clean, crawl, rank links, search
+│   │   │   ├── extraction/   requirements from the JD
+│   │   │   ├── generation/   brief, questions per category, flashcards
+│   │   │   ├── coverage/     gap check — deterministic code
+│   │   │   └── schedule/     day allocation — deterministic code
+│   │   ├── llm/          provider client, rate limiting, retries
+│   │   ├── routes/       HTTP endpoints
+│   │   ├── db/           MongoDB access
+│   │   └── cli/evaluate.js   `npm run evaluate -- --input … --output …`
+│   └── test/             node:test
+├── web/                  @trao/web — Next.js 16 + Tailwind 4 (App Router, src/)
+├── docs/                 brief, architecture, decisions, gaps, specs
+└── .claude/skills/       project skills for repeated workflows
+```
 
 ## Pipeline (retrieval → extraction → generation → coverage → schedule)
 
