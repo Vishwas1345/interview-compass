@@ -10,6 +10,8 @@ import { HttpError } from "../http/errors.js";
 import { MAX_JD_CHARS } from "../pipeline/extraction/extract-requirements.js";
 import { dedupeKey } from "../kits/dedupe.js";
 import { applyOp } from "../kits/ops.js";
+import { briefHasEdits } from "../kits/merge.js";
+import { QUESTION_CATEGORIES } from "@interview-compass/shared";
 import { validateKit } from "@interview-compass/shared";
 
 export const MAX_KITS_PER_DAY = 10;
@@ -46,6 +48,8 @@ export function kitView(doc) {
     version: doc.version ?? 0,
     warnings: check?.warnings ?? [],
     scheduleStale: Boolean(doc.scheduleStale),
+    regenerating: doc.regenerating ?? null,
+    lastRegeneration: doc.lastRegeneration ?? null,
     updatedAt: doc.updatedAt,
     completedAt: doc.completedAt ?? null,
   };
@@ -206,8 +210,34 @@ export function kitRoutes({ db, jobs, now = () => new Date() }) {
     res.json({ kit: kitView(await kits.findOne({ _id: doc._id })) });
   });
 
+  // Regenerate the brief or one question category in the background (D8). Edits
+  // keep working meanwhile; the result is merged into the kit as it is then.
+  router.post("/:id/regenerate", async (req, res) => {
+    const request = regenerateBody.parse(req.body ?? {});
+    const doc = await ownKit(req);
+    if (doc.status !== "ready") throw new HttpError(409, "NOT_READY", "This kit is not ready yet.");
+    if (doc.regenerating) throw regenerationRunning();
+    if (request.target === "brief" && briefHasEdits(doc.kit) && !request.confirm) {
+      throw new HttpError(409, "CONFIRM_REQUIRED", "You edited this brief. Replace it anyway?");
+    }
+    // The lock: only one regeneration per kit at a time.
+    const locked = await kits.updateOne(
+      { _id: doc._id, userId: req.user._id, status: "ready", regenerating: null },
+      { $set: { regenerating: { target: request.target, category: request.category ?? null, startedAt: now() } } },
+    );
+    if (locked.matchedCount === 0) throw regenerationRunning();
+    jobs.regenerate(doc._id, request);
+    res.status(202).json({ kit: kitView(await kits.findOne({ _id: doc._id })) });
+  });
+
   return router;
 }
+
+const regenerateBody = z.discriminatedUnion("target", [
+  z.object({ target: z.literal("brief"), confirm: z.boolean().optional() }),
+  z.object({ target: z.literal("category"), category: z.enum(QUESTION_CATEGORIES) }),
+]);
+const regenerationRunning = () => new HttpError(409, "REGENERATION_RUNNING", "A regeneration is already running for this kit.");
 
 const opsBody = z.object({ version: z.int().min(1), op: z.object({ type: z.string() }).loose() });
 

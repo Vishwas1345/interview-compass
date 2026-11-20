@@ -217,8 +217,8 @@ test("deleting a kit removes it", async () => {
 
 // --- builder operations over HTTP ---------------------------------------------
 
-async function readyKit(n) {
-  pipelineDeps.llm = fakeLlm();
+async function readyKit(n, llm = fakeLlm()) {
+  pipelineDeps.llm = llm;
   const b = await signedIn();
   const created = await b.post("/api/kits", posting(n));
   await jobs.wait(created.body.kit.id);
@@ -293,4 +293,137 @@ test("ops are refused while the kit is still generating, and for bad operations"
   const bad = await b.post(`/api/kits/${created.body.kit.id}/ops`, { version: 1, op: { type: "deleteQuestion", id: "q999" } });
   assert.equal(bad.status, 400);
   assert.equal(bad.body.error.code, "INVALID_OP");
+});
+
+// --- regeneration -------------------------------------------------------------
+
+const op = (b, kit, version, body) => b.post(`/api/kits/${kit.id}/ops`, { version, op: body }).then((r) => r.body.kit);
+
+test("THE builder promise: edit, pin and delete, then regenerate the category — edits survive, the deleted one never returns", async () => {
+  // Two questions per requirement, so the technical category has enough to edit, pin and delete.
+  const twoEach = (label, ids) => ids.flatMap((id) => [1, 2].map((n) => ({ prompt: `Q${n} on ${id} (${label})?`, answer_outline: "", difficulty: 2, requirement_ids: [id] })));
+  const { b, kit } = await readyKit(30, fakeLlm({ questions: twoEach }));
+  const technical = kit.kit.questions.filter((q) => q.category === "technical");
+  assert.ok(technical.length >= 3);
+  const [toEdit, toPin, toDelete, ...rest] = technical;
+
+  let current = await op(b, kit, 1, { type: "updateQuestion", id: toEdit.id, fields: { prompt: "My rewritten question" } });
+  current = await op(b, kit, current.version, { type: "setPinned", target: "question", id: toPin.id, pinned: true });
+  current = await op(b, kit, current.version, { type: "deleteQuestion", id: toDelete.id });
+  const idsBefore = new Set([...kit.kit.questions.map((q) => q.id)]);
+  const positionsBefore = current.kit.questions.map((q) => q.id);
+
+  const llm = fakeLlm();
+  pipelineDeps.llm = llm;
+  const started = await b.post(`/api/kits/${kit.id}/regenerate`, { target: "category", category: "technical" });
+  assert.equal(started.status, 202);
+  assert.equal(started.body.kit.regenerating.category, "technical");
+  await jobs.wait(kit.id);
+
+  const after = (await b.get(`/api/kits/${kit.id}`)).body.kit;
+  const byId = new Map(after.kit.questions.map((q) => [q.id, q]));
+  // Edited and pinned: word for word, same position relative to each other.
+  assert.equal(byId.get(toEdit.id).prompt, "My rewritten question");
+  assert.equal(byId.get(toPin.id).prompt, toPin.prompt);
+  assert.equal(byId.get(toPin.id).state, "pinned");
+  const order = after.kit.questions.map((q) => q.id);
+  assert.ok(order.indexOf(toEdit.id) < order.indexOf(toPin.id));
+  assert.deepEqual(order.slice(0, 2), positionsBefore.slice(0, 2), "protected questions keep their slots");
+  // The AI's untouched technical questions were replaced, and the deleted one did not come back.
+  for (const q of rest) assert.ok(!byId.has(q.id), `${q.id} should have been replaced`);
+  assert.ok(!byId.has(toDelete.id));
+  // New questions have ids never seen in this kit.
+  const added = after.kit.questions.filter((q) => !idsBefore.has(q.id));
+  assert.ok(added.length > 0);
+  // The model was told what was deleted, separately from what is kept.
+  const call = llm.calls.find((c) => c.label === "questions: technical");
+  assert.match(call.user, /The candidate deleted these/);
+  assert.ok(call.user.includes(toDelete.prompt));
+  assert.equal(after.regenerating, null);
+  assert.deepEqual(after.lastRegeneration.kept, [toEdit.id, toPin.id]);
+  assert.equal(after.scheduleStale, true);
+});
+
+test("an edit made while the regeneration runs survives the merge", async () => {
+  const { b, kit } = await readyKit(31);
+  const behavioural = kit.kit.questions.find((q) => q.category === "behavioural");
+  const { llm, release } = heldLlm();
+  pipelineDeps.llm = llm;
+  await b.post(`/api/kits/${kit.id}/regenerate`, { target: "category", category: "technical" });
+  // While the model "works", the user edits another category.
+  const edited = await op(b, kit, 1, { type: "updateQuestion", id: behavioural.id, fields: { prompt: "Edited meanwhile" } });
+  assert.equal(edited.version, 2);
+  release();
+  await jobs.wait(kit.id);
+  const after = (await b.get(`/api/kits/${kit.id}`)).body.kit;
+  assert.equal(after.kit.questions.find((q) => q.id === behavioural.id).prompt, "Edited meanwhile");
+  assert.equal(after.version, 3, "the merge saved on top of the edit");
+  assert.equal(after.lastRegeneration.error, null);
+});
+
+test("a second regeneration while one runs is refused", async () => {
+  const { b, kit } = await readyKit(32);
+  const { llm, release } = heldLlm();
+  pipelineDeps.llm = llm;
+  await b.post(`/api/kits/${kit.id}/regenerate`, { target: "category", category: "technical" });
+  const second = await b.post(`/api/kits/${kit.id}/regenerate`, { target: "category", category: "behavioural" });
+  assert.equal(second.status, 409);
+  assert.equal(second.body.error.code, "REGENERATION_RUNNING");
+  release();
+  await jobs.wait(kit.id);
+});
+
+test("a regeneration that leaves a requirement uncovered gets a gap pass", async () => {
+  const { b, kit } = await readyKit(33);
+  // r3 (a domain requirement) is also covered outside the technical category; remove
+  // those so only the technical category covers it, then regenerate without it.
+  let version = 1;
+  for (const q of kit.kit.questions.filter((x) => x.category !== "technical" && x.requirement_ids.includes("r3"))) {
+    version = (await op(b, kit, version, { type: "deleteQuestion", id: q.id })).version;
+  }
+  // The regenerated technical draft ignores r3; the gap pass must add it back.
+  const llm = fakeLlm({
+    questions: (label, ids) => ids.filter((id) => !(label === "questions: technical" && id === "r3")).map((id) => ({ prompt: `Fresh ${id} ${label}`, answer_outline: "", difficulty: 2, requirement_ids: [id] })),
+  });
+  pipelineDeps.llm = llm;
+  await b.post(`/api/kits/${kit.id}/regenerate`, { target: "category", category: "technical" });
+  await jobs.wait(kit.id);
+  const after = (await b.get(`/api/kits/${kit.id}`)).body.kit;
+  assert.ok(llm.calls.some((c) => c.label === "gap pass (technical)"));
+  assert.deepEqual(after.lastRegeneration.coverage_log[0].uncovered_requirement_ids, ["r3"]);
+  assert.deepEqual(after.kit.coverage.uncovered_requirement_ids, []);
+});
+
+test("regenerating an edited brief asks first; pinned fields are never replaced", async () => {
+  const { b, kit } = await readyKit(34);
+  let current = await op(b, kit, 1, { type: "updateBrief", fields: { summary: "My summary" } });
+  current = await op(b, kit, current.version, { type: "setPinned", target: "brief", field: "what_they_do", pinned: true });
+  const ask = await b.post(`/api/kits/${kit.id}/regenerate`, { target: "brief" });
+  assert.equal(ask.status, 409);
+  assert.equal(ask.body.error.code, "CONFIRM_REQUIRED");
+
+  pipelineDeps.llm = fakeLlm();
+  assert.equal((await b.post(`/api/kits/${kit.id}/regenerate`, { target: "brief", confirm: true })).status, 202);
+  await jobs.wait(kit.id);
+  const after = (await b.get(`/api/kits/${kit.id}`)).body.kit;
+  assert.equal(after.kit.company_brief.summary, "Acme builds rockets.", "confirmed: the edited summary is replaced");
+  assert.equal(after.kit.company_brief.what_they_do, current.kit.company_brief.what_they_do, "pinned: kept");
+  assert.deepEqual(after.lastRegeneration.replaced, ["summary"]);
+});
+
+test("a failed regeneration leaves the kit unchanged and says so; a restart clears a stuck lock", async () => {
+  const { b, kit } = await readyKit(35);
+  pipelineDeps.llm = fakeLlm({ failLabel: "questions: technical" });
+  await b.post(`/api/kits/${kit.id}/regenerate`, { target: "category", category: "technical" });
+  await jobs.wait(kit.id);
+  const after = (await b.get(`/api/kits/${kit.id}`)).body.kit;
+  assert.equal(after.version, 1);
+  assert.deepEqual(after.kit.questions, kit.kit.questions);
+  assert.equal(after.lastRegeneration.error.code, "LLM_BAD_OUTPUT");
+
+  await testDb.db.collection("kits").updateOne({ _id: new ObjectId(kit.id) }, { $set: { regenerating: { target: "brief", startedAt: new Date() } } });
+  await jobs.recoverOnBoot();
+  const recovered = (await b.get(`/api/kits/${kit.id}`)).body.kit;
+  assert.equal(recovered.regenerating, null);
+  assert.equal(recovered.lastRegeneration.error.code, "INTERRUPTED");
 });

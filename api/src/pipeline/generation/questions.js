@@ -45,7 +45,8 @@ const CATEGORY_RULES = {
 };
 
 // → { questions: [{ prompt, answer_outline, difficulty, requirement_ids, category, state, origin }], usage }
-export async function generateQuestions({ category, requirements, count, context, avoid = [], gapMode = false, llm, model }) {
+// avoid: prompts already in the kit (kept); dismissed: prompts the user deleted (D8 rule 3).
+export async function generateQuestions({ category, requirements, count, context, avoid = [], dismissed = [], gapMode = false, llm, model }) {
   const allowed = new Set(requirements.map((r) => r.id));
   const rules = [CATEGORY_RULES[category], ...stageRules(category, context.process)].join("\n");
   const instructions = gapMode
@@ -56,7 +57,7 @@ export async function generateQuestions({ category, requirements, count, context
     model,
     label: gapMode ? `gap pass (${category})` : `questions: ${category}`,
     system: `You prepare a candidate for a job interview.\n${instructions}\n\n${COMMON}\n\n${UNTRUSTED_RULE}`,
-    user: describeContext({ requirements, context, avoid }),
+    user: describeContext({ requirements, context, avoid, dismissed }),
     schema,
     maxTokens: 3500,
   });
@@ -121,7 +122,7 @@ export function createGapGenerator({ context, llm, model, onUsage = () => {} }) 
   };
 }
 
-function describeContext({ requirements, context, avoid }) {
+function describeContext({ requirements, context, avoid, dismissed = [] }) {
   const { role, brief, process } = context;
   const lines = [
     `Role: ${role.title || "(untitled)"}${role.seniority ? ` — ${role.seniority}` : ""}`,
@@ -138,6 +139,10 @@ function describeContext({ requirements, context, avoid }) {
     "Company brief:",
     wrapUntrusted("company brief", `${brief.summary}\n${brief.what_they_do}`),
   ];
-  if (avoid.length > 0) lines.push("", "Already in the kit (do not repeat):", ...avoid.map((p) => `- ${p}`));
+  // Kit text may be the user's own writing: data, like the posting.
+  if (avoid.length > 0) lines.push("", "Already in the kit (do not repeat):", wrapUntrusted("questions in the kit", avoid.map((p) => `- ${p}`).join("\n")));
+  if (dismissed.length > 0) {
+    lines.push("", "The candidate deleted these; do not suggest them or close variants again:", wrapUntrusted("deleted questions", dismissed.map((p) => `- ${p}`).join("\n")));
+  }
   return lines.filter((l) => l !== null).join("\n");
 }
