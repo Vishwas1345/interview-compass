@@ -231,3 +231,15 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 **Considered:** a Swiss/minimal system (white, black, signal blue, all sans); a soft SaaS system (grey canvas, shadowed cards, teal).
 
 **Why:** the first version leaned on defaults that read as machine-made: an indigo-to-violet gradient, colour on every element, emoji as icons, identical rounded cards. The kit is reading material (questions, outlines, a brief), and an editorial system serves reading: a serif for what you read, a sans for what you operate, one accent so the primary action is always obvious. Tokens make the system a single source of truth, so a new screen inherits it instead of inventing colours.
+
+---
+
+## D18 — The API is layered MVC; the pipeline stays one engine
+
+**Date:** 2026-11-20
+
+**Decision:** `api/src` is split by layer: `routes/` (URL → middleware → controller), `controllers/` (validate, call a service, send a view), `services/` (business rules), `models/` (the only MongoDB code, each owning its indexes), `views/` (the response shapes), `validators/` (zod request schemas), `middlewares/`, `utils/`, `config/`, `lib/llm/`. `app.js` is the composition root that builds them once. The pipeline (`pipeline/`) and the batch CLI are untouched by the layering.
+
+**Considered:** per-feature modules (`modules/kits/{routes, controller, service, model, view}`); keeping the topic folders and tidying names.
+
+**Why:** the route files had grown to hold validation, queries, rules and response shaping together (`routes/kits.js` was 317 lines). Layers give each concern one home and make the rules checkable by search (no `collection(` outside `models/`; no `views/` import in `services/`). With four resources, layer folders read more plainly than feature modules; that trade flips at around fifteen. The pipeline is an engine shared by the API job runner and the CLI, not a web concern, so splitting it across layers would scatter it. Views in an API are the "V": making them explicit keeps every outgoing field in one reviewable place, which is also a security boundary (no password hashes, file bytes or checkpoints leave). The refactor changed no behaviour: the 229 tests passed unchanged apart from one import path.

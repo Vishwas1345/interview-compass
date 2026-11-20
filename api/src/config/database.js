@@ -1,7 +1,8 @@
-// MongoDB access (D11): the official driver, one place that names the collections
-// and creates their indexes. The database name comes from the connection string.
+// MongoDB connection (D11): the official driver. Collections, queries and indexes
+// live in models/; the database name comes from the connection string.
 
 import { MongoClient } from "mongodb";
+import { createModels } from "../models/index.js";
 
 export async function connectDb(uri) {
   if (!uri) throw new Error("MONGODB_URI is not set; see .env.example.");
@@ -12,20 +13,8 @@ export async function connectDb(uri) {
   return { client, db };
 }
 
+// Each model declares its own indexes; this runs them all at startup.
 export async function ensureIndexes(db) {
-  await db.collection("users").createIndex({ email: 1 }, { unique: true });
-  // Expired sessions are removed by MongoDB itself; lookups also check expiresAt,
-  // because the TTL monitor runs only about once a minute.
-  await db.collection("sessions").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-  await db.collection("sessions").createIndex({ userId: 1 }); // sign out other devices
-
-  const kits = db.collection("kits");
-  await kits.createIndex({ userId: 1, createdAt: -1 }); // the kit list
-  await kits.createIndex({ userId: 1, dedupeKey: 1 }); // "you already have a kit for this posting"
-  // At most one generating kit per user, enforced by the database: two Generate
-  // clicks racing each other cannot both insert (spec: one generation at a time).
-  await kits.createIndex(
-    { userId: 1 },
-    { name: "one_generating_per_user", unique: true, partialFilterExpression: { status: "generating" } },
-  );
+  const models = createModels(db);
+  for (const model of Object.values(models)) await model.ensureIndexes();
 }

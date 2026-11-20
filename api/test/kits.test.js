@@ -6,7 +6,7 @@ import { startTestDb, startTestApp, browser, testClock } from "./helpers/app.js"
 import { JD, fakeLlm, testPipelineDeps } from "./helpers/fake-llm.js";
 import { startFixtureServer } from "./fixtures/server.js";
 import { createJobRunner } from "../src/services/job.service.js";
-import { MAX_KITS_PER_DAY } from "../src/routes/kit.routes.js";
+import { MAX_KITS_PER_DAY } from "../src/services/kit.service.js";
 
 let testDb, app, fixtures, jobs, pipelineDeps, clock;
 before(async () => {

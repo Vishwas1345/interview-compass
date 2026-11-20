@@ -12,41 +12,41 @@ const RENEW_AFTER_MS = DAY_MS; // sliding expiry, renewed at most once a day
 
 const hashToken = (token) => createHash("sha256").update(token).digest("hex");
 
-export function createSessionStore({ db, now = () => new Date() }) {
-  const sessions = db.collection("sessions");
+// sessions: the session model (models/session.model.js).
+export function createSessionService({ sessions, now = () => new Date() }) {
 
   async function create(userId) {
     const token = randomBytes(32).toString("base64url");
     const at = now();
-    await sessions.insertOne({ _id: hashToken(token), userId, createdAt: at, expiresAt: new Date(at.getTime() + SESSION_MS) });
+    await sessions.insert({ _id: hashToken(token), userId, createdAt: at, expiresAt: new Date(at.getTime() + SESSION_MS) });
     return { token, maxAgeMs: SESSION_MS };
   }
 
   // → { session, renewed } | null (unknown or expired)
   async function lookup(token) {
     if (!token) return null;
-    const session = await sessions.findOne({ _id: hashToken(token) });
+    const session = await sessions.findById(hashToken(token));
     const at = now();
     if (!session || session.expiresAt <= at) return null;
     if (session.expiresAt.getTime() - at.getTime() < SESSION_MS - RENEW_AFTER_MS) {
       const expiresAt = new Date(at.getTime() + SESSION_MS);
-      await sessions.updateOne({ _id: session._id }, { $set: { expiresAt } });
+      await sessions.setExpiry(session._id, expiresAt);
       return { session: { ...session, expiresAt }, renewed: true };
     }
     return { session, renewed: false };
   }
 
   async function destroy(token) {
-    if (token) await sessions.deleteOne({ _id: hashToken(token) });
+    if (token) await sessions.deleteById(hashToken(token));
   }
 
   // After a password change: sign out every other device, keep this one.
   async function destroyOthers(userId, keepToken) {
-    await sessions.deleteMany({ userId, _id: { $ne: hashToken(keepToken) } });
+    await sessions.deleteOthers(userId, hashToken(keepToken));
   }
 
   async function destroyAll(userId) {
-    await sessions.deleteMany({ userId });
+    await sessions.deleteAllForUser(userId);
   }
 
   return { create, lookup, destroy, destroyOthers, destroyAll, maxAgeMs: SESSION_MS };

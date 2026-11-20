@@ -10,11 +10,12 @@ import { generateQuestions, createGapGenerator } from "../pipeline/generation/qu
 import { writeBrief } from "../pipeline/generation/brief.js";
 import { closeGaps, findUncovered } from "../pipeline/coverage/coverage.js";
 import { mergeCategory, mergeBrief } from "./kit-merge.service.js";
+import { createKitModel } from "../models/kit.model.js";
 
 export const MERGE_ATTEMPTS = 3; // re-read and re-merge when an edit lands first
 
-export function createJobRunner({ db, pipelineDeps, now = () => new Date(), log = console.error }) {
-  const kits = db.collection("kits");
+// kits: the kit model; db is accepted for convenience (tests and the server pass it).
+export function createJobRunner({ db, kits = createKitModel(db), pipelineDeps, now = () => new Date(), log = console.error }) {
   const running = new Map(); // kitId string → promise
 
   const progressEvent = (event) => ({ ...event, at: now() });
@@ -30,7 +31,7 @@ export function createJobRunner({ db, pipelineDeps, now = () => new Date(), log 
   }
 
   async function run(kitId) {
-    const doc = await kits.findOne({ _id: kitId });
+    const doc = await kits.findById(kitId);
     if (!doc || doc.status !== "generating") return;
     const started = Date.now();
     // Progress writes are chained so they land in order, and flushed before the
@@ -38,58 +39,42 @@ export function createJobRunner({ db, pipelineDeps, now = () => new Date(), log 
     let progressChain = Promise.resolve();
     const pushProgress = (event) => {
       progressChain = progressChain
-        .then(() => kits.updateOne({ _id: kitId }, { $push: { progress: progressEvent(event) } }))
+        .then(() => kits.pushProgress(kitId, progressEvent(event)))
         .catch(() => {});
     };
     try {
       const { kit } = await runPipeline(doc.input, {
         ...pipelineDeps,
         checkpoint: doc.checkpoint ?? {},
-        onCheckpoint: (step, result) => kits.updateOne({ _id: kitId }, { $set: { [`checkpoint.${step}`]: result, updatedAt: now() } }),
+        onCheckpoint: (step, result) => kits.saveCheckpoint(kitId, step, result, now()),
         onProgress: pushProgress,
       });
       await progressChain;
-      await kits.updateOne(
-        { _id: kitId, status: "generating" },
+      await kits.markReady(
+        kitId,
         {
-          $set: {
-            status: "ready",
-            kit,
-            version: 1,
-            counters: { q: highestId(kit.questions, "q"), f: highestId(kit.flashcards, "f") },
-            error: null,
-            completedAt: now(),
-            updatedAt: now(),
-          },
-          $push: { progress: progressEvent({ step: "kit ready", status: "done", ms: Date.now() - started }) },
+          kit,
+          version: 1,
+          counters: { q: highestId(kit.questions, "q"), f: highestId(kit.flashcards, "f") },
+          error: null,
+          completedAt: now(),
+          updatedAt: now(),
         },
+        progressEvent({ step: "kit ready", status: "done", ms: Date.now() - started }),
       );
     } catch (error) {
       const code = error?.code && ERROR_CODES[error.code] ? error.code : ERROR_CODES.INTERNAL_ERROR;
       const message = code === ERROR_CODES.INTERNAL_ERROR ? "Something went wrong while generating this kit." : error.message;
       if (code === ERROR_CODES.INTERNAL_ERROR) log(`kit ${kitId} failed: ${error?.stack ?? error}`);
       await progressChain;
-      await kits.updateOne(
-        { _id: kitId, status: "generating" },
-        {
-          $set: { status: "failed", error: { code, message }, updatedAt: now() },
-          $push: { progress: progressEvent({ step: "failed", status: "failed", message }) },
-        },
-      );
+      await kits.markFailed(kitId, { code, message }, progressEvent({ step: "failed", status: "failed", message }), now());
     }
   }
 
   // One process runs every job (D9: a single Render instance), so on startup any
   // kit still marked "generating" lost its job in the restart.
   async function recoverOnBoot() {
-    const result = await kits.updateMany(
-      { status: "generating" },
-      {
-        $set: { status: "interrupted", updatedAt: now() },
-        $push: { progress: progressEvent({ step: "interrupted", status: "failed", message: "The server restarted during generation." }) },
-      },
-    );
-    return result.modifiedCount;
+    return kits.interruptAllGenerating(progressEvent({ step: "interrupted", status: "failed", message: "The server restarted during generation." }), now());
   }
 
   // --- regeneration (D8 rules 2, 4, 5) ---------------------------------------
@@ -105,7 +90,7 @@ export function createJobRunner({ db, pipelineDeps, now = () => new Date(), log 
   async function runRegeneration(kitId, { target, category, confirm }) {
     const { llm, models } = pipelineDeps;
     try {
-      const doc = await kits.findOne({ _id: kitId });
+      const doc = await kits.findById(kitId);
       const context = contextOf(doc);
       let fresh; // the model's work, done once; only the merge is retried
       if (target === "brief") {
@@ -129,29 +114,24 @@ export function createJobRunner({ db, pipelineDeps, now = () => new Date(), log 
       }
 
       for (let attempt = 1; attempt <= MERGE_ATTEMPTS; attempt += 1) {
-        const current = await kits.findOne({ _id: kitId }); // includes edits made meanwhile
+        const current = await kits.findById(kitId); // includes edits made meanwhile
         if (!current || current.status !== "ready") return;
         const result = target === "brief" ? mergeBriefInto(current, fresh, confirm) : await mergeCategoryInto(current, category, fresh, context);
         const check = validateKit(result.update.kit, { daysRequested: result.update.kit.schedule.days_available, coverage: "warn" });
         if (!check.ok) throw new Error(`regenerated kit invalid: ${check.errors[0].path}: ${check.errors[0].message}`);
-        const saved = await kits.updateOne(
-          { _id: kitId, version: current.version },
-          {
-            $set: { ...result.update, regenerating: null, lastRegeneration: { target, category: category ?? null, ...result.summary, at: now(), error: null }, updatedAt: now() },
-            $inc: { version: 1 },
-          },
-        );
-        if (saved.matchedCount === 1) return;
+        const saved = await kits.saveRegenerationIfVersion(kitId, current.version, {
+          ...result.update,
+          lastRegeneration: { target, category: category ?? null, ...result.summary, at: now(), error: null },
+          updatedAt: now(),
+        });
+        if (saved) return;
       }
       throw new Error("the kit kept changing while the regeneration was saved");
     } catch (error) {
       const code = error?.code && (ERROR_CODES[error.code] || error.code === "NOT_REGENERABLE") ? error.code : ERROR_CODES.INTERNAL_ERROR;
       if (code === ERROR_CODES.INTERNAL_ERROR) log(`regeneration of kit ${kitId} failed: ${error?.stack ?? error}`);
       const message = code === ERROR_CODES.INTERNAL_ERROR ? "The regeneration failed; your kit is unchanged." : error.message;
-      await kits.updateOne(
-        { _id: kitId },
-        { $set: { regenerating: null, lastRegeneration: { target, category: category ?? null, at: now(), error: { code, message } } } },
-      );
+      await kits.failRegeneration(kitId, { target, category: category ?? null, at: now(), error: { code, message } });
     }
   }
 
@@ -186,11 +166,7 @@ export function createJobRunner({ db, pipelineDeps, now = () => new Date(), log 
   }
 
   async function recoverRegenerationsOnBoot() {
-    const result = await kits.updateMany(
-      { regenerating: { $ne: null }, status: "ready" },
-      { $set: { regenerating: null, lastRegeneration: { at: now(), error: { code: "INTERRUPTED", message: "The server restarted during the regeneration; your kit is unchanged." } } } },
-    );
-    return result.modifiedCount;
+    return kits.clearStuckRegenerations({ at: now(), error: { code: "INTERRUPTED", message: "The server restarted during the regeneration; your kit is unchanged." } });
   }
 
   return {

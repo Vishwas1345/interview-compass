@@ -16,21 +16,23 @@ interview-compass/
 ├── .env.example          every env var, documented
 ├── shared/               @interview-compass/shared — the kit contract (Appendix A), used by api and web
 │   └── src/index.js
-├── api/                  @interview-compass/api — Express server, pipeline, batch CLI
+├── api/                  @interview-compass/api — Express API (layered MVC, D18), pipeline, batch CLI
 │   ├── src/
-│   │   ├── app.js        builds the Express app (no listen — tests mount it)
-│   │   ├── server.js     listens on PORT
-│   │   ├── pipeline/     one folder per concern; the CLI and the routes call the same code
-│   │   │   ├── retrieval/    fetch, clean, crawl, rank links, search
-│   │   │   ├── extraction/   requirements from the JD
-│   │   │   ├── generation/   brief, questions per category, flashcards
-│   │   │   ├── coverage/     gap check — deterministic code
-│   │   │   └── schedule/     day allocation — deterministic code
-│   │   ├── llm/          provider client, rate limiting, retries
-│   │   ├── routes/       HTTP endpoints
-│   │   ├── db/           MongoDB access
+│   │   ├── server.js         connects MongoDB, starts the job runner, listens
+│   │   ├── app.js            composition root: models → services → controllers → routes
+│   │   ├── config/           env (index.js), MongoDB connection + indexes (database.js)
+│   │   ├── routes/           *.routes.js — URL → middleware → controller, nothing else
+│   │   ├── controllers/      *.controller.js — validate the request, call a service, send a view
+│   │   ├── services/         *.service.js — business rules (auth, account, profile, kit, job, ops, merge, coach, …)
+│   │   ├── models/           *.model.js — the only code that queries MongoDB; owns its indexes
+│   │   ├── views/            *.view.js — exactly what leaves the server
+│   │   ├── validators/       *.validator.js — zod schemas for request bodies
+│   │   ├── middlewares/      auth, json-only, upload guard, raw body, error handler
+│   │   ├── utils/            HttpError, cookies, duplicate-key check
+│   │   ├── lib/llm/          LLM client, rate limiter, untrusted-content wrapping
+│   │   ├── pipeline/         the engine: retrieval/, extraction/, generation/, coverage/, schedule/, run-pipeline.js
 │   │   └── cli/evaluate.js   `npm run evaluate -- --input … --output …`
-│   └── test/             node:test
+│   └── test/             node:test (unit, pipeline with a fake model, HTTP against a real throwaway MongoDB)
 ├── web/                  @interview-compass/web — Next.js 16 + Tailwind 4 (App Router, src/)
 ├── docs/                 brief, architecture, decisions, gaps, specs
 └── .claude/skills/       project skills for repeated workflows
@@ -90,7 +92,9 @@ Express 5, everything under `/api` (the web app proxies `/api/*`, D10). Errors a
 | PUT / GET / DELETE | `/api/profile/photo`, `/api/profile/resume` | raw-body uploads behind `X-Requested-With` (D16); downloads with the detected type and `nosniff` |
 | POST | `/api/account/email`, `/api/account/password`, `/api/account/delete` | need the current password; a password change signs out other devices |
 
-Middleware order: JSON body (200 KB) → JSON-only mutations → `requireUser` on `/api/kits` → routes → error handler.
+Middleware order: JSON body (200 KB) → JSON-only mutations → `requireUser` on `/api/kits`, `/api/profile`, `/api/account` → routes → error handler.
+
+**Layer rules (D18).** Routes only wire URLs to controllers. Controllers validate with `validators/`, call one service, and answer with a `views/` shape; they never touch MongoDB. Services hold the rules and call models; they never import views, so an error that concerns a kit carries the raw document as `error.doc` and the controller turns it into a view. Models are the only code that queries MongoDB and declare their own indexes; they hold no business rules. The pipeline is a separate engine used by `services/job.service.js` and the CLI.
 
 ## Frontend
 
