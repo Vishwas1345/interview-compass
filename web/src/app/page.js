@@ -1,10 +1,20 @@
+import { HomeActions } from "@/components/home-actions";
+
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-4 px-6 py-24">
-      <h1 className="text-3xl font-semibold tracking-tight">InterviewCompass</h1>
-      <p className="text-zinc-600 dark:text-zinc-400">
-        Paste a job description, add the company website and the days you have. Scaffold only — features land next.
+    <div className="mx-auto max-w-2xl py-8 sm:py-16">
+      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Walk into the interview prepared.</h1>
+      <p className="mt-4 text-lg text-zinc-600">
+        Paste a job description, add the company website and the days you have. InterviewCompass reads the posting, researches the
+        company and its hiring process, and builds a prep kit you can edit and practise: questions for every requirement, flashcards
+        and a day-by-day plan.
       </p>
-    </main>
+      <ul className="mt-6 space-y-2 text-sm text-zinc-700">
+        <li>• Every requirement comes word for word from the posting. Nothing is invented.</li>
+        <li>• Rewrite or pin any question; regenerating never overwrites your work.</li>
+        <li>• Practise one card at a time, weakest first, with an answer coach.</li>
+      </ul>
+      <HomeActions />
+    </div>
   );
 }

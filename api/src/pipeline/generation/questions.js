@@ -76,6 +76,18 @@ export async function generateQuestions({ category, requirements, count, context
     // A question naming no valid requirement is kept only where general questions are expected.
     .filter((q) => q.requirement_ids.length > 0 || allowed.size === 0 || category === "company-fit" || category === "behavioural");
 
+  // Gap mode asks for exactly one question per requirement; the model sometimes
+  // writes several (seen live: 4 for one requirement). Keep a question only if it
+  // covers a requirement no kept question covers yet.
+  if (gapMode) {
+    const covered = new Set();
+    const kept = questions.filter((q) => {
+      if (!q.requirement_ids.some((id) => !covered.has(id))) return false;
+      q.requirement_ids.forEach((id) => covered.add(id));
+      return true;
+    });
+    return { questions: kept, usage };
+  }
   return { questions, usage };
 }
 

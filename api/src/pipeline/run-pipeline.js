@@ -157,6 +157,11 @@ export async function runPipeline(input, deps) {
     "coverage",
   );
 
+  for (const entry of coverage.log) {
+    const gaps = entry.uncovered_requirement_ids;
+    log(`coverage: check ${entry.check}: ${gaps.length === 0 ? "every requirement covered" : `${gaps.length} uncovered (${gaps.join(", ")})`}${entry.added ? `, gap pass added ${entry.added}` : ""}${entry.fallbacks ? `, fallback for ${entry.fallbacks.join(", ")}` : ""}`);
+  }
+
   // 9. Flashcards (fast model).
   const cards = await step("make flashcards", () =>
     softly(() => makeFlashcards({ questions: coverage.questions, requirements: role.requirements, llm, model: models.fast }), {

@@ -137,3 +137,14 @@ test("the prompt carries the take-home rule only when a take-home was published"
   assert.match(llm.calls[0].system, /includes a take-home/);
   assert.doesNotMatch(llm.calls[1].system, /take-home/);
 });
+
+test("gap mode keeps one question per uncovered requirement, even if the model writes more", async () => {
+  const llm = fakeLlm([
+    { prompt: "A", answer_outline: "", difficulty: 2, requirement_ids: ["r1"] },
+    { prompt: "B", answer_outline: "", difficulty: 2, requirement_ids: ["r1"] },
+    { prompt: "C", answer_outline: "", difficulty: 2, requirement_ids: ["r3"] },
+    { prompt: "D", answer_outline: "", difficulty: 2, requirement_ids: ["r1", "r3"] },
+  ]);
+  const { questions } = await generateQuestions({ category: "technical", requirements: [requirements[0], requirements[2]], context, gapMode: true, llm, model: "m" });
+  assert.deepEqual(questions.map((q) => q.prompt), ["A", "C"]);
+});
