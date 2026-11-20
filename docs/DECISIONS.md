@@ -103,3 +103,21 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 **Considered:** Brave Search API (now needs a card), scraping DuckDuckGo/Google result pages (captchas, against their terms).
 
 **Why:** Tavily has a no-card free plan (1,000 searches/month) and returns cleaned text built for LLMs; HN search needs no key, so a clean clone without a Tavily key still searches somewhere. Both outputs are untrusted text, capped and delimited like crawled pages.
+
+---
+
+## D8 — Edit state: a label on every item, regeneration is a merge
+
+**Date:** 2026-11-20
+
+**Decision:**
+1. Every question, flashcard and brief field carries `state` (`generated` | `edited` | `pinned`) and `origin` (`ai` | `user`). Editing flips `generated` → `edited`; pinning is an explicit button; user-written items start as `origin: user, state: edited`. Anything not `generated` is **protected**.
+2. Regenerating a question category keeps protected items in place, removes that category's `generated` items, asks the LLM for replacements (told which items are kept and which were dismissed), validates the response, assigns **new, never-reused ids**, then re-runs the coverage check in code.
+3. Deleting a generated question adds its prompt to a per-category `dismissed` list, passed to the LLM as "do not suggest these again".
+4. Regenerating the brief when a field is `edited` asks first ("You edited this. Replace it anyway?"); nothing is overwritten silently. The schedule is recomputed in code; question ids removed by a regeneration are dropped from it and the schedule is flagged stale until rebuilt.
+5. The merge reads the kit as it is when generation **finishes**, so edits made mid-generation are protected. Every write carries the kit's `version`; a write against an old version is rejected and retried (optimistic concurrency).
+6. `state`, `origin` and `dismissed` are additive fields; every Appendix A field is unchanged.
+
+**Considered:** an edit log replayed onto the regenerated kit; versioned snapshots with a manual merge UI.
+
+**Why:** the label moves "may this be replaced?" from a guess at merge time to a fact recorded at edit time, so the merge is a filter that is easy to test and to explain. The edit log breaks when operations point at items a regeneration removed; snapshots hand the merge back to the user. A kit is one MongoDB document, so each merge is one atomic update.
