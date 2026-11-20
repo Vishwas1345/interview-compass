@@ -1,21 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { get } from "@/lib/api";
+import { get, post } from "@/lib/api";
+import { localApply } from "@/lib/local-ops";
 
 const POLL_MS = 2000;
 
-// Loads one kit and keeps polling while the server is working on it (generation or
-// a regeneration), D12. Polling stops by itself when the page is hidden: Next keeps
-// left pages mounted but cleans up their effects (cacheComponents Activity).
+// Loads one kit, keeps polling while the server works on it (generation or a
+// regeneration, D12), and runs builder operations (D13):
+// - operations queue, so each one is sent with the version the previous one produced;
+// - the screen updates at once (localApply) and is rolled back if the save fails;
+// - a VERSION_CONFLICT (another tab saved first) loads the latest kit instead.
+// Polling stops by itself when the page is hidden: Next keeps left pages mounted but
+// cleans up their effects (cacheComponents Activity).
 export function useKit(id) {
   const [kit, setKit] = useState(null);
   const [error, setError] = useState(null);
-  const timer = useRef(null);
+  const kitRef = useRef(null);
+  const queue = useRef(Promise.resolve());
+
+  useEffect(() => {
+    kitRef.current = kit;
+  }, [kit]);
 
   const load = useCallback(async () => {
     try {
       const data = await get(`/kits/${id}`);
+      kitRef.current = data.kit;
       setKit(data.kit);
       setError(null);
       return data.kit;
@@ -27,14 +38,58 @@ export function useKit(id) {
 
   const busy = kit && (kit.status === "generating" || Boolean(kit.regenerating));
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- the initial fetch for this kit
-    if (!kit) load();
-  }, [kit, load]);
+    let cancelled = false;
+    get(`/kits/${id}`)
+      .then((data) => {
+        if (cancelled) return;
+        kitRef.current = data.kit;
+        setKit(data.kit);
+      })
+      .catch((e) => !cancelled && setError(e));
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
   useEffect(() => {
     if (!busy) return;
-    timer.current = setInterval(load, POLL_MS);
-    return () => clearInterval(timer.current);
+    const timer = setInterval(load, POLL_MS);
+    return () => clearInterval(timer);
   }, [busy, load]);
 
-  return { kit, setKit, error, reload: load };
+  // Replace the kit with a server answer (e.g. after resume or regenerate).
+  const replace = useCallback((next) => {
+    kitRef.current = next;
+    setKit(next);
+  }, []);
+
+  // → resolves with the saved kit, or rejects with the ApiError (after rollback).
+  const runOp = useCallback(
+    (op) => {
+      const run = async () => {
+        const before = kitRef.current;
+        const preview = localApply(before, op);
+        if (preview) {
+          kitRef.current = preview;
+          setKit(preview);
+        }
+        try {
+          const { kit: saved } = await post(`/kits/${id}/ops`, { version: before.version, op });
+          kitRef.current = saved;
+          setKit(saved);
+          return saved;
+        } catch (e) {
+          const latest = e.code === "VERSION_CONFLICT" && e.details.kit ? e.details.kit : before;
+          kitRef.current = latest;
+          setKit(latest);
+          throw e;
+        }
+      };
+      const result = queue.current.then(run, run);
+      queue.current = result.catch(() => {});
+      return result;
+    },
+    [id],
+  );
+
+  return { kit, error, reload: load, replace, runOp };
 }
