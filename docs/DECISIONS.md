@@ -207,3 +207,15 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 **Considered:** a per-requirement readiness map; a timed mock-interview mode.
 
 **Why:** practice in the brief is "read the card, self-grade"; an interview needs rehearsal, saying an answer and finding out what it lacked. The readiness map overlaps the required "covered vs not" view, and a timed mode is mostly a timer. One small fast-model call (~1 second) per use fits the shared budget. Live tuning: the first prompt's "improvement" listed the whole outline, which hands the candidate the answer; it is now constrained to one missed point.
+
+---
+
+## D16 — Profile files live in MongoDB; uploads are raw bodies checked by their bytes
+
+**Date:** 2026-11-20
+
+**Decision:** The profile photo (JPEG, PNG or WebP, ≤ 1 MB) and résumé (PDF, ≤ 4 MB) are stored as binary inside the user's document. They are uploaded with `PUT` and the file as the raw body (no multipart library). Upload routes skip the JSON-only rule and instead require `X-Requested-With: InterviewCompass`, a custom header a cross-site page cannot send without a CORS preflight this API never grants. The file type is detected from the first bytes; the client's name and `Content-Type` are ignored. Files are served with the detected type, `X-Content-Type-Options: nosniff` and `Cache-Control: private, no-cache`; the résumé also with `Content-Disposition: attachment` and `Content-Security-Policy: sandbox`. The signed-in check loads users with the file bytes projected out. The résumé is stored and downloadable only: the app never reads it (the brief puts CV parsing out of scope).
+
+**Considered:** Cloudinary or S3; Render's disk; multipart uploads with multer.
+
+**Why:** MongoDB needs no new service on deploy day, and the caps keep the free cluster safe (~100 users with both files). Render's free disk is wiped on every deploy. A multipart form is exactly what a cross-site page can submit, so it would need the header guard anyway, plus a dependency. Checking bytes, not names, stops a renamed script being stored as an image; serving with `nosniff` and as an attachment stops any stored file running in our origin. 4 MB, not 5, because Vercel's proxy limits request bodies to about 4.5 MB. **Next step at scale:** object storage with signed URLs, confined to the profile routes.

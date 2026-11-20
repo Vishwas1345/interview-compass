@@ -8,11 +8,13 @@ import { createApp } from "../../src/app.js";
 
 export async function startTestDb() {
   const server = await MongoMemoryServer.create();
-  const client = await MongoClient.connect(server.getUri());
+  // monitorCommands lets a test see exactly what was sent to MongoDB.
+  const client = await MongoClient.connect(server.getUri(), { monitorCommands: true });
   const db = client.db("test");
   await ensureIndexes(db);
   return {
     db,
+    client,
     async stop() {
       await client.close();
       await server.stop();

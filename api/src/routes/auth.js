@@ -7,6 +7,7 @@ import { HttpError } from "../http/errors.js";
 import { requireUser, readCookie, sessionCookieOptions } from "../http/middleware.js";
 import { hashPassword, verifyPassword, burnPasswordCheck } from "../auth/passwords.js";
 import { SESSION_COOKIE } from "../auth/sessions.js";
+import { publicUser } from "../auth/users.js";
 
 export const PASSWORD_MIN = 8;
 const PASSWORD_MAX = 200; // scrypt cost grows with input; a cap stops oversized inputs
@@ -19,7 +20,6 @@ const registration = credentials.extend({
   password: z.string().min(PASSWORD_MIN, `Password must be at least ${PASSWORD_MIN} characters.`).max(PASSWORD_MAX, "Password is too long."),
 });
 
-const publicUser = (user) => ({ id: String(user._id), email: user.email, createdAt: user.createdAt });
 
 export function authRoutes({ db, sessions, production, now = () => new Date() }) {
   const users = db.collection("users");

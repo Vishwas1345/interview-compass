@@ -40,5 +40,14 @@ export function createSessionStore({ db, now = () => new Date() }) {
     if (token) await sessions.deleteOne({ _id: hashToken(token) });
   }
 
-  return { create, lookup, destroy, maxAgeMs: SESSION_MS };
+  // After a password change: sign out every other device, keep this one.
+  async function destroyOthers(userId, keepToken) {
+    await sessions.deleteMany({ userId, _id: { $ne: hashToken(keepToken) } });
+  }
+
+  async function destroyAll(userId) {
+    await sessions.deleteMany({ userId });
+  }
+
+  return { create, lookup, destroy, destroyOthers, destroyAll, maxAgeMs: SESSION_MS };
 }

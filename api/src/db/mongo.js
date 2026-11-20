@@ -17,6 +17,7 @@ export async function ensureIndexes(db) {
   // Expired sessions are removed by MongoDB itself; lookups also check expiresAt,
   // because the TTL monitor runs only about once a minute.
   await db.collection("sessions").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  await db.collection("sessions").createIndex({ userId: 1 }); // sign out other devices
 
   const kits = db.collection("kits");
   await kits.createIndex({ userId: 1, createdAt: -1 }); // the kit list
