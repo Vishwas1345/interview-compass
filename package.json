@@ -16,6 +16,7 @@
     "dev:web": "npm run dev -w @interview-compass/web",
     "evaluate": "node --env-file-if-exists=.env api/src/cli/evaluate.js",
     "test": "npm test -w @interview-compass/api",
-    "lint": "npm run lint -w @interview-compass/web"
+    "lint": "npm run lint -w @interview-compass/web",
+    "fixtures": "node api/test/fixtures/server.js"
   }
 }

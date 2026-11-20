@@ -18,3 +18,5 @@ Open questions, known limitations, and requirements not yet covered. Add an entr
 - **L1 — JavaScript-only sites.** Pages rendered only by client-side JavaScript come back with little text (no headless browser, D6). Recorded per page as "no readable text".
 - **L2 — Public discussion is thin.** Without a Tavily key only Hacker News is searched; small or private companies usually return nothing, and the kit says so (D7).
 - **L3 — Cold starts.** The Render free API sleeps after ~15 minutes idle; the first request takes ~50 seconds (D9). The UI shows a waking state.
+- **L4 — DNS rebinding.** The URL guard resolves a host and checks its addresses, then `fetch` resolves it again; a hostile DNS server could answer differently the second time. Accepted for this scope: closing it needs a custom HTTP agent that pins the checked address.
+- **L5 — Very large pages are skipped.** Pages over 2 MB are not read (e.g. posthog.com/careers on 2026-11-20); the skip is recorded, and the crawl moves on to the next-best page.

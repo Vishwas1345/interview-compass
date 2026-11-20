@@ -8,11 +8,13 @@
     "dev": "node --env-file-if-exists=../.env --watch src/server.js",
     "start": "node --env-file-if-exists=../.env src/server.js",
     "evaluate": "node --env-file-if-exists=../.env src/cli/evaluate.js",
-    "test": "node --test"
+    "test": "node --test \"test/**/*.test.js\""
   },
   "dependencies": {
     "@interview-compass/shared": "*",
+    "cheerio": "^1.2.0",
     "express": "^5.1.0",
+    "robots-parser": "^3.0.1",
     "zod": "^4.6.7"
   }
 }
