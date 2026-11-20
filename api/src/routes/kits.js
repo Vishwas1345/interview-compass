@@ -9,6 +9,8 @@ import { DAYS_MIN, DAYS_MAX } from "@interview-compass/shared";
 import { HttpError } from "../http/errors.js";
 import { MAX_JD_CHARS } from "../pipeline/extraction/extract-requirements.js";
 import { dedupeKey } from "../kits/dedupe.js";
+import { applyOp } from "../kits/ops.js";
+import { validateKit } from "@interview-compass/shared";
 
 export const MAX_KITS_PER_DAY = 10;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -34,6 +36,7 @@ export function kitSummary(doc) {
 
 // What the kit page gets. Internal fields (checkpoint, dedupe key, owner) stay server-side.
 export function kitView(doc) {
+  const check = doc.kit ? validateKit(doc.kit, { coverage: "warn" }) : null;
   return {
     ...kitSummary(doc),
     input: doc.input,
@@ -41,6 +44,8 @@ export function kitView(doc) {
     error: doc.error ?? null,
     kit: doc.kit ?? null,
     version: doc.version ?? 0,
+    warnings: check?.warnings ?? [],
+    scheduleStale: Boolean(doc.scheduleStale),
     updatedAt: doc.updatedAt,
     completedAt: doc.completedAt ?? null,
   };
@@ -174,7 +179,40 @@ export function kitRoutes({ db, jobs, now = () => new Date() }) {
     res.status(202).json({ kit: kitView(await kits.findOne({ _id: doc._id })) });
   });
 
+  // One builder operation against a known version (D8 rule 5: optimistic concurrency).
+  router.post("/:id/ops", async (req, res) => {
+    const { version, op } = opsBody.parse(req.body ?? {});
+    const doc = await ownKit(req);
+    if (doc.status !== "ready") throw new HttpError(409, "NOT_READY", "This kit is not ready to edit yet.");
+    if (version !== doc.version) throw conflict(doc);
+
+    const next = applyOp({ kit: doc.kit, counters: doc.counters, dismissed: doc.dismissed, scheduleStale: doc.scheduleStale }, op);
+    const days = next.kit.schedule.days_available;
+    const check = validateKit(next.kit, { daysRequested: days, coverage: "warn" });
+    if (!check.ok) {
+      const first = check.errors.slice(0, 3).map((e) => `${e.path}: ${e.message}`).join("; ");
+      throw new HttpError(422, "INVALID_KIT", `That change would break the kit (${first}).`);
+    }
+    const update = {
+      kit: next.kit,
+      counters: next.counters,
+      dismissed: next.dismissed,
+      scheduleStale: Boolean(next.scheduleStale),
+      "input.days": days,
+      updatedAt: now(),
+    };
+    const result = await kits.updateOne({ _id: doc._id, userId: req.user._id, version }, { $set: update, $inc: { version: 1 } });
+    if (result.matchedCount === 0) throw conflict(await kits.findOne({ _id: doc._id }));
+    res.json({ kit: kitView(await kits.findOne({ _id: doc._id })) });
+  });
+
   return router;
 }
+
+const opsBody = z.object({ version: z.int().min(1), op: z.object({ type: z.string() }).loose() });
+
+// A save based on an older copy: the latest kit comes back so the page can reload it.
+const conflict = (doc) =>
+  new HttpError(409, "VERSION_CONFLICT", "This kit changed in another tab; we loaded the latest version.", { kit: kitView(doc) });
 
 const notFound = () => new HttpError(404, "NOT_FOUND", "Kit not found.");

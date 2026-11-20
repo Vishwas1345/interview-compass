@@ -171,3 +171,15 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 **Considered:** a job queue (BullMQ with Redis, Agenda); streaming progress with server-sent events; restarting failed runs from scratch.
 
 **Why:** a single free instance gains nothing from a queue but a Redis dependency. Polling a document works through every proxy (the web rewrite, Render's front end), where a long-lived stream can be buffered or cut, and the document makes progress visible from any tab or device. Checkpoints answer the brief's "persist enough to resume": a restart after research costs only the remaining steps (in a live test, a kill after five steps resumed with all five reused). The database index settles the double-click race; code-level checks alone lost it in testing.
+
+---
+
+## D13 — Builder writes are typed operations applied by one pure function
+
+**Date:** 2026-11-20
+
+**Decision:** Every builder change is `POST /api/kits/:id/ops` with `{ version, op }`. `op.type` is one of `updateQuestion`, `updateFlashcard`, `updateBrief`, `addQuestion`, `addFlashcard`, `deleteQuestion`, `deleteFlashcard`, `setPinned`, `moveQuestion`, `reorder`, `setDays`, `rebuildSchedule`. A pure `applyOp(state, op)` (`api/src/kits/ops.js`) applies the D8 rules: an edit marks a generated item `edited`; an item edited while pinned returns to `edited`, not `generated`, when unpinned; added items are `origin: user`; new ids come from per-kit counters, so ids are never reused; a deleted AI question's prompt joins that category's `dismissed` list; deleted questions leave the schedule at once and the schedule is marked stale; `coverage.uncovered_requirement_ids` is recomputed after every op. The route saves only if the stored `version` still matches (`updateOne({ _id, userId, version })`, `$inc: { version: 1 }`), otherwise 409 `VERSION_CONFLICT` with the latest kit. User-edited kits are validated with `coverage: "warn"`: structure and references stay strict, an uncovered or unscheduled must-have becomes a warning.
+
+**Considered:** `PUT` of the whole edited kit, with the server diffing old and new to work out states.
+
+**Why:** a diff has to guess intent (was this a move or an edit? a delete or a regeneration?) and would get the `dismissed` list wrong; a typed operation states it. One pure function makes every rule testable without HTTP or a database (12 tests), and the version check turns "two tabs, last write silently wins" into a visible reload. Warn mode follows the app spec: the user may delete the only question for a requirement; the builder shows the gap with a fix instead of refusing the save.

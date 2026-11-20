@@ -214,3 +214,83 @@ test("deleting a kit removes it", async () => {
   assert.equal((await b.del(`/api/kits/${created.body.kit.id}`)).status, 204);
   assert.equal((await b.get(`/api/kits/${created.body.kit.id}`)).status, 404);
 });
+
+// --- builder operations over HTTP ---------------------------------------------
+
+async function readyKit(n) {
+  pipelineDeps.llm = fakeLlm();
+  const b = await signedIn();
+  const created = await b.post("/api/kits", posting(n));
+  await jobs.wait(created.body.kit.id);
+  const { body } = await b.get(`/api/kits/${created.body.kit.id}`);
+  return { b, kit: body.kit };
+}
+
+test("an edit saves, bumps the version, and survives a reload", async () => {
+  const { b, kit } = await readyKit(20);
+  const q1 = kit.kit.questions[0];
+  const res = await b.post(`/api/kits/${kit.id}/ops`, { version: 1, op: { type: "updateQuestion", id: q1.id, fields: { prompt: "My wording" } } });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.kit.version, 2);
+  const reloaded = (await b.get(`/api/kits/${kit.id}`)).body.kit;
+  assert.equal(reloaded.kit.questions[0].prompt, "My wording");
+  assert.equal(reloaded.kit.questions[0].state, "edited");
+});
+
+test("a save from an older copy is refused with the latest kit", async () => {
+  const { b, kit } = await readyKit(21);
+  const [first] = kit.kit.questions;
+  await b.post(`/api/kits/${kit.id}/ops`, { version: 1, op: { type: "updateQuestion", id: first.id, fields: { prompt: "Tab A" } } });
+  const stale = await b.post(`/api/kits/${kit.id}/ops`, { version: 1, op: { type: "updateQuestion", id: first.id, fields: { prompt: "Tab B" } } });
+  assert.equal(stale.status, 409);
+  assert.equal(stale.body.error.code, "VERSION_CONFLICT");
+  assert.equal(stale.body.error.kit.version, 2);
+  assert.equal(stale.body.error.kit.kit.questions[0].prompt, "Tab A", "nothing merged silently");
+});
+
+test("two ops racing on the same version: exactly one wins", async () => {
+  const { b, kit } = await readyKit(22);
+  const [x, y] = kit.kit.questions;
+  const results = await Promise.all([
+    b.post(`/api/kits/${kit.id}/ops`, { version: 1, op: { type: "updateQuestion", id: x.id, fields: { prompt: "A" } } }),
+    b.post(`/api/kits/${kit.id}/ops`, { version: 1, op: { type: "updateQuestion", id: y.id, fields: { prompt: "B" } } }),
+  ]);
+  assert.deepEqual(results.map((r) => r.status).sort(), [200, 409]);
+  assert.equal((await b.get(`/api/kits/${kit.id}`)).body.kit.version, 2);
+});
+
+test("deleting the only question for a must-have saves, with a warning and a stale schedule", async () => {
+  const { b, kit } = await readyKit(23);
+  const onlyForR2 = kit.kit.questions.filter((q) => q.requirement_ids.includes("r2"));
+  let version = 1;
+  for (const q of onlyForR2) {
+    const res = await b.post(`/api/kits/${kit.id}/ops`, { version, op: { type: "deleteQuestion", id: q.id } });
+    assert.equal(res.status, 200);
+    version = res.body.kit.version;
+  }
+  const after = (await b.get(`/api/kits/${kit.id}`)).body.kit;
+  assert.deepEqual(after.warnings.map((w) => [w.code, w.requirement_id]), [["MUST_UNCOVERED", "r2"]]);
+  assert.equal(after.scheduleStale, true);
+  assert.ok(after.kit.coverage.uncovered_requirement_ids.includes("r2"));
+});
+
+test("changing days through ops updates the kit's days", async () => {
+  const { b, kit } = await readyKit(24);
+  const res = await b.post(`/api/kits/${kit.id}/ops`, { version: 1, op: { type: "setDays", days: 60 } });
+  assert.equal(res.body.kit.kit.schedule.days.length, 60);
+  assert.equal(res.body.kit.days, 60);
+});
+
+test("ops are refused while the kit is still generating, and for bad operations", async () => {
+  const { llm, release } = heldLlm();
+  pipelineDeps.llm = llm;
+  const b = await signedIn();
+  const created = await b.post("/api/kits", posting(25));
+  const early = await b.post(`/api/kits/${created.body.kit.id}/ops`, { version: 1, op: { type: "rebuildSchedule" } });
+  assert.equal(early.body.error.code, "NOT_READY");
+  release();
+  await jobs.wait(created.body.kit.id);
+  const bad = await b.post(`/api/kits/${created.body.kit.id}/ops`, { version: 1, op: { type: "deleteQuestion", id: "q999" } });
+  assert.equal(bad.status, 400);
+  assert.equal(bad.body.error.code, "INVALID_OP");
+});

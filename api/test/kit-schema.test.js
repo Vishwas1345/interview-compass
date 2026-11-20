@@ -50,7 +50,7 @@ function expectInvalid(kit, pathFragment, options) {
 }
 
 test("a kit in the exact Appendix A shape passes", () => {
-  assert.deepEqual(validateKit(validKit(), { daysRequested: 2 }), { ok: true, errors: [] });
+  assert.deepEqual(validateKit(validKit(), { daysRequested: 2 }), { ok: true, errors: [], warnings: [] });
 });
 
 test("extra fields (D8 additive extensions) are allowed", () => {
@@ -157,4 +157,30 @@ test("a kit with no requirements at all (thin posting) is valid", () => {
 test("never throws on garbage input", () => {
   assert.equal(validateKit(null).ok, false);
   assert.equal(validateKit("kit").ok, false);
+});
+
+// --- warn mode (kits the user has edited) -------------------------------------
+
+test("warn mode: a must-have with no question is a warning, not an error", () => {
+  const kit = validKit();
+  kit.questions = kit.questions.filter((q) => q.id !== "q1"); // the user deleted the only r1 question
+  kit.schedule.days[0].question_ids = [];
+  expectInvalid(structuredClone(kit), "coverage.uncovered_requirement_ids"); // strict still refuses
+  const result = validateKit(kit, { coverage: "warn" });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.warnings.map((w) => [w.code, w.requirement_id]), [["MUST_UNCOVERED", "r1"]]);
+});
+
+test("warn mode: a covered but unscheduled must-have is a warning", () => {
+  const kit = validKit();
+  kit.schedule.days[0].question_ids = [];
+  const result = validateKit(kit, { coverage: "warn" });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.warnings.map((w) => w.code), ["MUST_UNSCHEDULED"]);
+});
+
+test("warn mode still rejects broken structure and references", () => {
+  const kit = validKit();
+  kit.questions[0].requirement_ids = ["r9"];
+  expectInvalid(kit, "questions.0.requirement_ids", { coverage: "warn" });
 });

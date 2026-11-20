@@ -92,7 +92,8 @@ export const kitSchema = z.looseObject({
 // reference pointing at something that exists, the exact day count, and no
 // must-have requirement left uncovered or unscheduled.
 // Returns { ok, errors: [{ path, message }] } and never throws.
-export function validateKit(kit, { daysRequested } = {}) {
+// coverage: "strict" (default) or "warn" — see the coverage rules at the end.
+export function validateKit(kit, { daysRequested, coverage = "strict" } = {}) {
   const parsed = kitSchema.safeParse(kit);
   if (!parsed.success) {
     return {
@@ -101,6 +102,7 @@ export function validateKit(kit, { daysRequested } = {}) {
         path: issue.path.join("."),
         message: issue.message,
       })),
+      warnings: [],
     };
   }
 
@@ -140,15 +142,22 @@ export function validateKit(kit, { daysRequested } = {}) {
   const scheduledRequirementIds = new Set(
     days.flatMap((d) => d.question_ids).flatMap((qId) => questionsById.get(qId)?.requirement_ids ?? []),
   );
+  // Strict (generated kits): an uncovered or unscheduled must-have is an error.
+  // Warn (kits the user has edited): it is a warning the builder shows with a fix,
+  // because a user may delete the only question for a requirement (app spec).
+  const warnings = [];
+  const coverageIssue = (path, message, code, requirementId) =>
+    coverage === "warn" ? warnings.push({ path, message, code, requirement_id: requirementId }) : fail(path, message);
+  const coveredByQuestions = new Set(kit.questions.flatMap((q) => q.requirement_ids));
   for (const must of musts) {
-    if (uncovered.has(must.id)) {
-      fail("coverage.uncovered_requirement_ids", `must-have requirement "${must.id}" is uncovered`);
+    if (uncovered.has(must.id) || !coveredByQuestions.has(must.id)) {
+      coverageIssue("coverage.uncovered_requirement_ids", `must-have requirement "${must.id}" is uncovered`, "MUST_UNCOVERED", must.id);
     } else if (!scheduledRequirementIds.has(must.id)) {
-      fail("schedule.days", `must-have requirement "${must.id}" does not appear in the schedule`);
+      coverageIssue("schedule.days", `must-have requirement "${must.id}" does not appear in the schedule`, "MUST_UNSCHEDULED", must.id);
     }
   }
 
-  return { ok: errors.length === 0, errors };
+  return { ok: errors.length === 0, errors, warnings };
 }
 
 function collectIds(items, path, fail) {

@@ -35,6 +35,6 @@ for (const days of [1, 5, 60]) {
       coverage: { uncovered_requirement_ids: covered.uncovered_requirement_ids, passes: covered.passes },
       schedule,
     });
-    assert.deepEqual(validateKit(kit, { daysRequested: days }), { ok: true, errors: [] });
+    assert.deepEqual(validateKit(kit, { daysRequested: days }), { ok: true, errors: [], warnings: [] });
   });
 }
