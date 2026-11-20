@@ -4,12 +4,32 @@ import { useEffect, useId, useRef, useState } from "react";
 import { QUESTION_CATEGORIES } from "@interview-compass/shared";
 import { moveInList } from "@/lib/local-ops";
 import { Button, Card, Dialog, EmptyState, Field, IconButton } from "@/components/ui";
+import { Select } from "@/components/select";
 import { IconArrowDown, IconArrowUp, IconPin, IconPlus, IconRefresh, IconTrash } from "@/components/icons";
 import { InlineEdit } from "@/components/builder/inline-edit";
 import { ItemState } from "@/components/builder/item-state";
 
 export const CATEGORY_LABELS = { technical: "Technical", behavioural: "Behavioural", "system-design": "System design", "company-fit": "Company fit" };
 const DIFFICULTY = { 1: "Fundamentals", 2: "Applied", 3: "Deep" };
+const DIFFICULTY_OPTIONS = [
+  { value: 1, label: "Fundamentals", hint: "Concepts and definitions · about 10 min" },
+  { value: 2, label: "Applied", hint: "Using it in real work · about 15 min" },
+  { value: 3, label: "Deep", hint: "Trade-offs and ambiguity · about 20 min" },
+];
+
+// "Applied" with a three-step meter, so difficulty reads at a glance.
+function DifficultyValue({ level, label }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span aria-hidden="true" className="flex items-end gap-[2px]">
+        {[1, 2, 3].map((n) => (
+          <span key={n} className={`w-[3px] rounded-sm ${n <= level ? "bg-ink-soft" : "bg-rule-strong"}`} style={{ height: 4 + n * 2 }} />
+        ))}
+      </span>
+      {label}
+    </span>
+  );
+}
 
 export function QuestionsTab({ ctx }) {
   const { kit, doc, pendingDeletes, regenerate, addFor, setAddFor } = ctx;
@@ -103,19 +123,15 @@ function QuestionCard({ ctx, question: q, ids, position }) {
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 px-2 text-xs text-muted">
             <ItemState state={q.state} origin={q.origin} />
             {q.fallback && <span className="rounded bg-sunken px-1.5 py-0.5 text-muted" title="Added by code because the model left this must-have uncovered">fallback</span>}
-            <label className="sr-only" htmlFor={`diff-${q.id}`}>Difficulty</label>
-            <select
-              id={`diff-${q.id}`}
+            <Select
+              variant="compact"
+              label="Difficulty"
               value={q.difficulty}
-              onChange={(e) => act({ type: "updateQuestion", id: q.id, fields: { difficulty: Number(e.target.value) } })}
-              className="-ml-1 rounded border-0 bg-transparent px-1 py-0 text-xs text-muted hover:text-ink"
-            >
-              {[1, 2, 3].map((d) => (
-                <option key={d} value={d}>
-                  {DIFFICULTY[d]}
-                </option>
-              ))}
-            </select>
+              options={DIFFICULTY_OPTIONS}
+              renderValue={(o) => <DifficultyValue level={o.value} label={o.label} />}
+              onChange={(difficulty) => act({ type: "updateQuestion", id: q.id, fields: { difficulty } })}
+              className="-ml-1.5"
+            />
             {q.requirement_ids.map((id) => {
               const r = requirements.find((x) => x.id === id);
               return (
@@ -157,20 +173,15 @@ function QuestionCard({ ctx, question: q, ids, position }) {
               <IconTrash />
             </IconButton>
           </div>
-          <label className="sr-only" htmlFor={`move-${q.id}`}>Move to category</label>
-          <select
-            id={`move-${q.id}`}
-            value=""
-            onChange={(e) => e.target.value && act({ type: "moveQuestion", id: q.id, category: e.target.value })}
-            className="h-8 rounded-md border border-rule bg-surface px-1.5 text-xs text-muted hover:border-rule-strong"
-          >
-            <option value="">Move…</option>
-            {QUESTION_CATEGORIES.filter((c) => c !== q.category).map((c) => (
-              <option key={c} value={c}>
-                {CATEGORY_LABELS[c]}
-              </option>
-            ))}
-          </select>
+          <Select
+            variant="menu"
+            label="Move to category"
+            value={null}
+            placeholder="Move to"
+            align="right"
+            options={QUESTION_CATEGORIES.filter((c) => c !== q.category).map((c) => ({ value: c, label: CATEGORY_LABELS[c] }))}
+            onChange={(category) => act({ type: "moveQuestion", id: q.id, category })}
+          />
         </div>
       </div>
     </div>
@@ -235,17 +246,11 @@ function AddQuestionForm({ ctx, preset, onDone }) {
         <p className="text-sm font-medium">New {CATEGORY_LABELS[preset.category].toLowerCase()} question</p>
         <Field label="Question" multiline rows={2} maxLength={2000} value={prompt} onChange={(e) => (setPrompt(e.target.value), setError(null))} error={error} />
         <Field label="Answer outline (optional)" multiline rows={2} maxLength={2000} value={outline} onChange={(e) => setOutline(e.target.value)} />
-        <div>
-          <label htmlFor={difficultyId} className="block text-sm font-medium text-ink-soft">
+        <div className="max-w-xs">
+          <p id={difficultyId} className="text-[13px] font-medium text-ink">
             Difficulty
-          </label>
-          <select id={difficultyId} value={difficulty} onChange={(e) => setDifficulty(Number(e.target.value))} className="mt-1 rounded-md border border-rule-strong bg-surface px-2 py-1.5 text-sm">
-            {[1, 2, 3].map((d) => (
-              <option key={d} value={d}>
-                {d} · {DIFFICULTY[d]}
-              </option>
-            ))}
-          </select>
+          </p>
+          <Select className="mt-1.5" label="Difficulty" value={difficulty} options={DIFFICULTY_OPTIONS} onChange={setDifficulty} />
         </div>
         <RequirementPicker requirements={kit.role.requirements} selected={requirementIds} onChange={setRequirementIds} open />
         <div className="flex justify-end gap-2">

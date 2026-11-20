@@ -10,6 +10,7 @@ import { RequireAuth } from "@/components/session";
 import { Alert, Button, ButtonLink, Card, EmptyState, Skeleton } from "@/components/ui";
 import { CATEGORY_LABELS } from "@/components/builder/questions-tab";
 import { Coach } from "@/components/practice/coach";
+import { Select } from "@/components/select";
 
 export function PracticePage() {
   return (
@@ -111,18 +112,19 @@ function DeckPicker({ kit, practice, onStart }) {
     <Card className="p-5">
       <h2 className="font-display text-2xl text-ink">Choose what to practise</h2>
       <p className="mt-1 text-sm text-muted">Cards come weakest first: the ones you have not seen or marked “Again”, must-haves before nice-to-haves.</p>
-      <div className="mt-3">
-        <label htmlFor="practice-day" className="text-sm text-ink-soft">
-          Schedule day{" "}
-        </label>
-        <select id="practice-day" value={day} onChange={(e) => setDay(Number(e.target.value))} className="rounded-md border border-rule-strong bg-surface px-2 py-1 text-sm">
-          {kit.schedule.days.map((d) => (
-            <option key={d.day} value={d.day}>
-              Day {d.day}
-              {d.kind === "review" ? " (review)" : ""}
-            </option>
-          ))}
-        </select>
+      <div className="mt-4 flex items-center gap-2 text-sm text-ink-soft">
+        Schedule day
+        <Select
+          variant="menu"
+          label="Schedule day"
+          value={day}
+          onChange={setDay}
+          options={kit.schedule.days.map((d) => ({
+            value: d.day,
+            label: `Day ${d.day}${d.kind === "review" ? " · review" : ""}`,
+            hint: `${d.question_ids.length} question${d.question_ids.length === 1 ? "" : "s"} · ${d.minutes} min`,
+          }))}
+        />
       </div>
       <ul className="mt-4 grid gap-2 sm:grid-cols-3">
         {options.map((o) => (
