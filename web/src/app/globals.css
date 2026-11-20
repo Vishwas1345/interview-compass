@@ -16,6 +16,8 @@
   --color-faint: #9a958b;        /* meta, placeholders */
   --color-rule: #e4e0d7;         /* hairlines */
   --color-rule-strong: #cfc9bc;  /* input borders, emphasised rules */
+  --color-hover: #e7e2d7;        /* hover fill: clearly darker than paper */
+  --color-hover-strong: #dcd6c9; /* hover fill on already-filled controls */
 
   --color-accent: #1f5c4a;       /* the one accent: primary actions, links, progress */
   --color-accent-hover: #174636;
@@ -54,9 +56,15 @@ body {
   color: var(--color-muted);
 }
 
+/* Selected text: the accent, so a selection is unmistakable. */
 ::selection {
-  background: var(--color-accent-tint);
-  color: var(--color-ink);
+  background: var(--color-accent);
+  color: var(--color-surface);
+}
+
+/* Native checkboxes, radios and ranges in the accent. */
+:root {
+  accent-color: var(--color-accent);
 }
 
 /* A visible focus outline on everything, for keyboard users (app spec). */

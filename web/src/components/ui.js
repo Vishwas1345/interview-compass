@@ -7,10 +7,10 @@ import { forwardRef, useEffect, useId, useRef } from "react";
 import Link from "next/link";
 
 const BUTTON = {
-  primary: "bg-accent text-surface hover:bg-accent-hover disabled:bg-accent/40",
-  secondary: "bg-surface text-ink ring-1 ring-inset ring-rule-strong hover:ring-ink/40 disabled:text-faint",
+  primary: "bg-accent text-surface hover:bg-accent-hover active:bg-ink disabled:bg-accent/40",
+  secondary: "bg-surface text-ink ring-1 ring-inset ring-rule-strong hover:bg-hover hover:ring-ink/50 active:bg-hover-strong disabled:text-faint disabled:hover:bg-surface",
   danger: "bg-danger text-surface hover:bg-danger-hover disabled:bg-danger/40",
-  ghost: "text-ink-soft hover:bg-sunken hover:text-ink disabled:text-faint",
+  ghost: "text-ink-soft hover:bg-hover hover:text-ink active:bg-hover-strong disabled:text-faint disabled:hover:bg-transparent",
 };
 const SIZE = { sm: "h-8 px-3 text-[13px]", md: "h-9 px-4 text-sm" };
 
@@ -160,7 +160,7 @@ export function IconButton({ label, children, className = "", pressed, ...props 
       aria-label={label}
       title={label}
       aria-pressed={pressed}
-      className={`grid h-8 w-8 place-items-center rounded-md text-faint transition-colors hover:bg-sunken hover:text-ink disabled:cursor-not-allowed disabled:opacity-30 ${pressed ? "text-accent" : ""} ${className}`}
+      className={`grid h-8 w-8 place-items-center rounded-md transition-colors hover:bg-hover hover:text-ink active:bg-hover-strong disabled:cursor-not-allowed disabled:opacity-30 ${pressed ? "bg-accent-tint text-accent" : "text-muted"} ${className}`}
       {...props}
     >
       {children}

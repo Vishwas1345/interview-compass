@@ -131,7 +131,7 @@ function DeckPicker({ kit, practice, onStart }) {
               type="button"
               disabled={o.disabled}
               onClick={() => onStart(o.deck, day)}
-              className="h-full w-full rounded-lg border border-rule bg-surface p-4 text-left hover:border-accent/50 hover:bg-accent-tint/40 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-full w-full rounded-lg border border-rule bg-surface p-4 text-left transition-colors hover:border-accent hover:bg-accent-tint disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-rule disabled:hover:bg-surface"
             >
               <span className="block font-medium text-ink">{o.title}</span>
               <span className="text-sm text-muted">{o.detail}</span>

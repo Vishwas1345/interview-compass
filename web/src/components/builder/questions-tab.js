@@ -95,7 +95,7 @@ function QuestionCard({ ctx, question: q, ids, position }) {
   };
 
   return (
-    <div className="group border-b border-rule py-4">
+    <div className="group -mx-3 border-b border-rule px-3 py-4 transition-colors hover:bg-hover/50 focus-within:bg-hover/50">
       <div className="flex items-start gap-3">
         <span className="mt-[7px] w-6 shrink-0 font-mono text-xs tabular-nums text-faint">{String(position).padStart(2, "0")}</span>
         <div className="min-w-0 flex-1">

@@ -80,7 +80,7 @@ export function AppShell({ children }) {
           <Suspense fallback={<ProfileLink user={session.user} onNavigate={() => setOpen(false)} />}>
             <ProfileLinkActive user={session.user} onNavigate={() => setOpen(false)} />
           </Suspense>
-          <button type="button" onClick={session.signOut} className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink-soft hover:bg-sunken">
+          <button type="button" onClick={session.signOut} className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink-soft transition-colors hover:bg-hover hover:text-ink">
             <IconLogOut /> Sign out
           </button>
         </div>
@@ -93,10 +93,10 @@ export function AppShell({ children }) {
   );
 }
 
-// Active: ink text on a sunken row with an accent rule at the edge; idle: soft ink.
+// Current page: a dark ink row; hover: a clearly darker warm fill.
 const linkClass = (active) =>
-  `relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] transition-colors ${
-    active ? "bg-sunken font-medium text-ink before:absolute before:inset-y-1.5 before:-left-3 before:w-[3px] before:rounded-r before:bg-accent" : "text-ink-soft hover:bg-sunken/70 hover:text-ink"
+  `flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] transition-colors ${
+    active ? "bg-ink font-medium text-paper" : "text-ink-soft hover:bg-hover hover:text-ink"
   }`;
 
 function StaticNav() {
@@ -157,7 +157,7 @@ function SidebarNav({ onNavigate }) {
                 href={`/kits/${kitId}/practice`}
                 onClick={onNavigate}
                 aria-current={practising ? "page" : undefined}
-                className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] font-medium transition-colors ${practising ? "bg-accent text-surface" : "text-accent hover:bg-accent-tint"}`}
+                className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] font-medium transition-colors ${practising ? "bg-accent text-surface" : "text-accent hover:bg-accent hover:text-surface"}`}
               >
                 <IconPlay /> Practise
               </Link>
@@ -172,7 +172,7 @@ function SidebarNav({ onNavigate }) {
 // The signed-in user at the bottom of the sidebar; opens the profile page.
 function ProfileLink({ user, onNavigate, active = false }) {
   return (
-    <Link href="/profile" onClick={onNavigate} aria-current={active ? "page" : undefined} className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 ${active ? "bg-accent-tint" : "hover:bg-sunken"}`}>
+    <Link href="/profile" onClick={onNavigate} aria-current={active ? "page" : undefined} className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors ${active ? "bg-hover-strong" : "hover:bg-hover"}`}>
       <Avatar user={user} />
       <span className="min-w-0">
         <span className="block truncate text-sm font-medium text-ink">{user.name || user.email}</span>

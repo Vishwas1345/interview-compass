@@ -118,7 +118,7 @@ function KitCard({ kit, onDelete }) {
   const c = kit.counts;
   const cards = c ? c.questions + c.flashcards : 0;
   return (
-    <div className="group relative flex h-full flex-col rounded-lg border border-rule bg-surface p-5 transition-colors hover:border-ink/25">
+    <div className="group relative flex h-full flex-col rounded-lg border border-rule bg-surface p-5 transition hover:-translate-y-0.5 hover:border-ink/40 hover:shadow-[0_14px_32px_-20px_rgb(28_27_25/0.45)] focus-within:border-ink/40">
       <div className="flex items-start justify-between gap-2">
         <StatusBadge status={kit.status} />
         <IconButton label={`Delete kit for ${kit.role || kit.company}`} className="relative z-10 -mr-1 -mt-1 hover:bg-danger-tint hover:text-danger" onClick={onDelete}>
