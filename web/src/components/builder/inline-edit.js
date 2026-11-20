@@ -49,7 +49,7 @@ export function InlineEdit({ value, onSave, label, maxLength = 2000, placeholder
             finish(true);
           }
         }}
-        className={`block w-full resize-none rounded-md border border-indigo-400 bg-white px-2 py-1 text-sm shadow-sm focus:outline-none ${className}`}
+        className={`block w-full resize-none rounded-md border border-accent/50 bg-surface px-2 py-1 text-sm shadow-sm focus:outline-none ${className}`}
       />
     );
   }
@@ -59,7 +59,7 @@ export function InlineEdit({ value, onSave, label, maxLength = 2000, placeholder
       onClick={start}
       title="Click to edit"
       aria-label={`${label}: ${value || placeholder}. Press Enter to edit.`}
-      className={`block w-full cursor-text whitespace-pre-wrap rounded-md px-2 py-1 text-left hover:bg-zinc-100 ${value ? "" : "italic text-zinc-400"} ${textClassName} ${className}`}
+      className={`block w-full cursor-text whitespace-pre-wrap rounded-md px-2 py-1 text-left hover:bg-sunken ${value ? "" : "italic text-faint"} ${textClassName} ${className}`}
     >
       {value || placeholder}
     </button>

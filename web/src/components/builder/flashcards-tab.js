@@ -20,7 +20,7 @@ export function FlashcardsTab({ ctx }) {
   return (
     <div>
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-zinc-600">Short cards for quick recall. Practise them from the Practise button.</p>
+        <p className="text-sm text-muted">Short cards for quick recall. Practise them from the Practise button.</p>
         <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>
           Add flashcard
         </Button>
@@ -38,13 +38,13 @@ export function FlashcardsTab({ ctx }) {
               <li key={f.id}>
                 <Card className="flex h-full flex-col p-4">
                   <div className="flex items-center gap-2 text-xs">
-                    <span className="font-mono text-zinc-400">{index + 1}.</span>
+                    <span className="font-mono text-faint">{index + 1}.</span>
                     <ItemState state={f.state} origin={f.origin} />
                   </div>
                   <InlineEdit label="Front" value={f.front} maxLength={500} onSave={(front) => act({ type: "updateFlashcard", id: f.id, fields: { front } })} className="mt-2" textClassName="font-medium" />
-                  <InlineEdit label="Back" value={f.back} maxLength={500} onSave={(back) => act({ type: "updateFlashcard", id: f.id, fields: { back } })} className="mt-1" textClassName="text-sm text-zinc-700" />
+                  <InlineEdit label="Back" value={f.back} maxLength={500} onSave={(back) => act({ type: "updateFlashcard", id: f.id, fields: { back } })} className="mt-1" textClassName="text-sm text-ink-soft" />
                   <RequirementPicker requirements={kit.role.requirements} selected={f.requirement_ids} onChange={(requirement_ids) => act({ type: "updateFlashcard", id: f.id, fields: { requirement_ids } })} />
-                  <div className="mt-auto flex flex-wrap gap-1 border-t border-zinc-100 pt-3">
+                  <div className="mt-auto flex flex-wrap gap-1 border-t border-rule pt-3">
                     <Button size="sm" variant="ghost" aria-label={`Move flashcard ${index + 1} up`} disabled={index === 0} onClick={() => move(f.id, -1)}>
                       ↑
                     </Button>
@@ -54,7 +54,7 @@ export function FlashcardsTab({ ctx }) {
                     <Button size="sm" variant="ghost" aria-pressed={pinned} onClick={() => act({ type: "setPinned", target: "flashcard", id: f.id, pinned: !pinned })}>
                       {pinned ? "Unpin" : "Pin"}
                     </Button>
-                    <Button size="sm" variant="ghost" className="ml-auto text-red-700" onClick={() => deleteLater("flashcard", f.id, `flashcard ${index + 1}`)}>
+                    <Button size="sm" variant="ghost" className="ml-auto text-danger" onClick={() => deleteLater("flashcard", f.id, `flashcard ${index + 1}`)}>
                       Delete
                     </Button>
                   </div>
@@ -82,7 +82,7 @@ function AddCard({ ctx, onDone }) {
     if (saved) onDone(true);
   }
   return (
-    <Card className="mt-3 border-indigo-200 p-4">
+    <Card className="mt-3 border-accent/30 p-4">
       <form onSubmit={submit} onKeyDown={(e) => e.key === "Escape" && onDone(false)} className="grid gap-3 sm:grid-cols-2">
         <Field label="Front" multiline rows={2} maxLength={500} value={front} onChange={(e) => (setFront(e.target.value), setError(null))} autoFocus />
         <Field label="Back" multiline rows={2} maxLength={500} value={back} onChange={(e) => (setBack(e.target.value), setError(null))} error={error} />

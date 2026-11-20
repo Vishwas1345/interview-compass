@@ -106,7 +106,7 @@ export function WakeBanner() {
   }, []);
   if (!waking) return null;
   return (
-    <div role="status" className="flex items-center justify-center gap-2 bg-amber-100 px-4 py-2 text-sm text-amber-900">
+    <div role="status" className="flex items-center justify-center gap-2 bg-warn-tint px-4 py-2 text-sm text-warn">
       <Spinner /> Waking the server. This can take up to a minute on the free plan.
     </div>
   );

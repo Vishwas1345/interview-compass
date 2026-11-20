@@ -7,15 +7,15 @@ import { forwardRef, useEffect, useId, useRef } from "react";
 import Link from "next/link";
 
 const BUTTON = {
-  primary: "bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-indigo-300",
-  secondary: "bg-white text-zinc-800 ring-1 ring-inset ring-zinc-300 hover:bg-zinc-50 disabled:text-zinc-400",
-  danger: "bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300",
-  ghost: "text-zinc-700 hover:bg-zinc-100 disabled:text-zinc-400",
+  primary: "bg-accent text-surface hover:bg-accent-hover disabled:bg-accent/40",
+  secondary: "bg-surface text-ink ring-1 ring-inset ring-rule-strong hover:ring-ink/40 disabled:text-faint",
+  danger: "bg-danger text-surface hover:bg-danger-hover disabled:bg-danger/40",
+  ghost: "text-ink-soft hover:bg-sunken hover:text-ink disabled:text-faint",
 };
-const SIZE = { sm: "px-2.5 py-1.5 text-sm", md: "px-4 py-2 text-sm" };
+const SIZE = { sm: "h-8 px-3 text-[13px]", md: "h-9 px-4 text-sm" };
 
 export function buttonClass(variant = "primary", size = "md", extra = "") {
-  return `inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors disabled:cursor-not-allowed ${BUTTON[variant]} ${SIZE[size]} ${extra}`;
+  return `inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors disabled:cursor-not-allowed ${BUTTON[variant]} ${SIZE[size]} ${extra}`;
 }
 
 export const Button = forwardRef(function Button({ variant = "primary", size = "md", busy = false, className = "", children, disabled, ...props }, ref) {
@@ -46,26 +46,26 @@ export function Field({ label, hint, error, multiline = false, className = "", .
   const Control = multiline ? "textarea" : "input";
   return (
     <div className={className}>
-      <label htmlFor={id} className="block text-sm font-medium text-zinc-800">
+      <label htmlFor={id} className="block text-[13px] font-medium text-ink">
         {label}
       </label>
       <Control
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        className={`mt-1 block w-full rounded-md border bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none ${
-          error ? "border-red-500" : "border-zinc-300"
+        className={`mt-1.5 block w-full rounded-md border bg-surface px-3 py-2 text-sm text-ink placeholder:text-faint transition-colors focus:border-ink/60 focus:outline-none ${
+          error ? "border-danger" : "border-rule-strong hover:border-ink/30"
         }`}
         {...props}
       />
       {/* Hint and error sit below the input, so inputs in a row always line up. */}
       {error && (
-        <p id={`${id}-error`} className="mt-1 text-sm text-red-700">
+        <p id={`${id}-error`} className="mt-1.5 text-[13px] text-danger">
           {error}
         </p>
       )}
       {hint && !error && (
-        <p id={`${id}-hint`} className="mt-1 text-xs text-zinc-500">
+        <p id={`${id}-hint`} className="mt-1.5 text-xs text-muted">
           {hint}
         </p>
       )}
@@ -74,19 +74,21 @@ export function Field({ label, hint, error, multiline = false, className = "", .
 }
 
 const ALERT = {
-  error: "border-red-200 bg-red-50 text-red-800",
-  warning: "border-amber-200 bg-amber-50 text-amber-900",
-  info: "border-indigo-200 bg-indigo-50 text-indigo-900",
-  success: "border-emerald-200 bg-emerald-50 text-emerald-900",
+  error: { rule: "border-l-danger", title: "text-danger" },
+  warning: { rule: "border-l-warn", title: "text-warn" },
+  info: { rule: "border-l-accent", title: "text-ink" },
+  success: { rule: "border-l-accent", title: "text-accent" },
 };
 
+// A quiet notice: a coloured left rule on the surface, not a coloured box.
 export function Alert({ tone = "error", title, children, action, className = "" }) {
+  const style = ALERT[tone];
   return (
-    <div role={tone === "error" ? "alert" : "status"} className={`rounded-md border px-4 py-3 text-sm ${ALERT[tone]} ${className}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          {title && <p className="font-medium">{title}</p>}
-          {children && <div className={title ? "mt-1" : ""}>{children}</div>}
+    <div role={tone === "error" ? "alert" : "status"} className={`rounded-md border border-l-[3px] border-rule bg-surface px-4 py-3 text-sm text-ink-soft ${style.rule} ${className}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          {title && <p className={`font-medium ${style.title}`}>{title}</p>}
+          {children && <div className={title ? "mt-0.5" : ""}>{children}</div>}
         </div>
         {action}
       </div>
@@ -96,21 +98,21 @@ export function Alert({ tone = "error", title, children, action, className = "" 
 
 export function EmptyState({ title, children, action }) {
   return (
-    <div className="rounded-lg border border-dashed border-zinc-300 bg-white px-6 py-10 text-center">
-      <p className="font-medium text-zinc-900">{title}</p>
-      {children && <div className="mx-auto mt-1 max-w-md text-sm text-zinc-600">{children}</div>}
-      {action && <div className="mt-4">{action}</div>}
+    <div className="rounded-lg border border-dashed border-rule-strong px-6 py-12 text-center">
+      <p className="font-display text-xl text-ink">{title}</p>
+      {children && <div className="mx-auto mt-1.5 max-w-md text-sm text-muted">{children}</div>}
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
 
 export function Skeleton({ className = "h-4 w-full" }) {
-  return <div aria-hidden="true" className={`animate-pulse rounded bg-zinc-200 ${className}`} />;
+  return <div aria-hidden="true" className={`animate-pulse rounded-md bg-sunken ${className}`} />;
 }
 
 export function Card({ className = "", children, ...props }) {
   return (
-    <div className={`rounded-lg border border-zinc-200 bg-white ${className}`} {...props}>
+    <div className={`rounded-lg border border-rule bg-surface ${className}`} {...props}>
       {children}
     </div>
   );
@@ -135,15 +137,15 @@ export function Dialog({ open, onClose, title, children, actions }) {
         e.preventDefault();
         onClose();
       }}
-      className="m-auto w-[min(92vw,28rem)] rounded-lg p-0 shadow-xl"
+      className="m-auto w-[min(92vw,28rem)] rounded-lg border border-rule bg-surface p-0 shadow-[0_24px_64px_-16px_rgb(28_27_25/0.35)]"
     >
       {open && (
-        <div className="p-5">
-          <h2 id={titleId} className="text-base font-semibold text-zinc-900">
+        <div className="p-6">
+          <h2 id={titleId} className="font-display text-xl text-ink">
             {title}
           </h2>
-          <div className="mt-2 text-sm text-zinc-700">{children}</div>
-          {actions && <div className="mt-5 flex flex-wrap justify-end gap-2">{actions}</div>}
+          <div className="mt-2 text-sm leading-relaxed text-ink-soft">{children}</div>
+          {actions && <div className="mt-6 flex flex-wrap justify-end gap-2">{actions}</div>}
         </div>
       )}
     </dialog>
@@ -158,7 +160,7 @@ export function IconButton({ label, children, className = "", pressed, ...props 
       aria-label={label}
       title={label}
       aria-pressed={pressed}
-      className={`grid h-8 w-8 place-items-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-30 ${pressed ? "bg-amber-50 text-amber-700" : ""} ${className}`}
+      className={`grid h-8 w-8 place-items-center rounded-md text-faint transition-colors hover:bg-sunken hover:text-ink disabled:cursor-not-allowed disabled:opacity-30 ${pressed ? "text-accent" : ""} ${className}`}
       {...props}
     >
       {children}

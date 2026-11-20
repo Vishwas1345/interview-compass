@@ -58,8 +58,8 @@ function KitListInner() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">My kits</h1>
-          {kits?.length > 0 && <p className="mt-0.5 text-sm text-zinc-600">{kits.length} kit{kits.length === 1 ? "" : "s"}. Open one to edit it or practise.</p>}
+          <h1 className="font-display text-[34px] leading-tight text-ink">My kits</h1>
+          {kits?.length > 0 && <p className="mt-0.5 text-sm text-muted">{kits.length} kit{kits.length === 1 ? "" : "s"}. Open one to edit it or practise.</p>}
         </div>
         {kits?.length > 0 && (
           <ButtonLink href="/kits/new">
@@ -80,7 +80,7 @@ function KitListInner() {
           </EmptyState>
         )}
         {kits?.length > 0 && (
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {kits.map((kit) => (
               <li key={kit.id}>
                 <KitCard kit={kit} onDelete={() => setToDelete(kit)} />
@@ -118,41 +118,41 @@ function KitCard({ kit, onDelete }) {
   const c = kit.counts;
   const cards = c ? c.questions + c.flashcards : 0;
   return (
-    <div className="group relative flex h-full flex-col rounded-lg border border-zinc-200 bg-white p-4 transition hover:border-indigo-300 hover:shadow-sm">
+    <div className="group relative flex h-full flex-col rounded-lg border border-rule bg-surface p-5 transition-colors hover:border-ink/25">
       <div className="flex items-start justify-between gap-2">
         <StatusBadge status={kit.status} />
-        <IconButton label={`Delete kit for ${kit.role || kit.company}`} className="relative z-10 -mr-1 -mt-1 hover:bg-red-50 hover:text-red-700" onClick={onDelete}>
+        <IconButton label={`Delete kit for ${kit.role || kit.company}`} className="relative z-10 -mr-1 -mt-1 hover:bg-danger-tint hover:text-danger" onClick={onDelete}>
           <IconTrash />
         </IconButton>
       </div>
       {/* The whole card is the link; the delete button sits above it. */}
-      <Link href={`/kits/${kit.id}`} className="mt-2 rounded after:absolute after:inset-0 after:content-['']">
-        <p className="truncate font-semibold text-zinc-900">{kit.role || (kit.status === "ready" ? "Untitled role" : "Generating…")}</p>
-        <p className="truncate text-sm text-zinc-600">{kit.company}</p>
+      <Link href={`/kits/${kit.id}`} className="mt-3 rounded after:absolute after:inset-0 after:content-['']">
+        <p className="eyebrow truncate">{kit.company}</p>
+        <p className="mt-1 line-clamp-2 font-display text-[22px] leading-snug text-ink">{kit.role || (kit.status === "ready" ? "Untitled role" : "Generating…")}</p>
       </Link>
       {kit.status === "ready" && c ? (
         <>
-          <p className="mt-3 text-xs text-zinc-600">
+          <p className="mt-3 text-xs text-muted">
             {c.requirements} requirements · {c.questions} questions · {kit.days} {kit.days === 1 ? "day" : "days"}
           </p>
           <div className="mt-3">
-            <div className="flex justify-between text-[11px] text-zinc-500">
+            <div className="flex justify-between text-[11px] text-muted">
               <span>Practised</span>
               <span>
                 {c.gotIt}/{cards} got it
               </span>
             </div>
-            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-100" aria-hidden="true">
-              <div className="h-full bg-indigo-500" style={{ width: `${cards ? (c.gotIt / cards) * 100 : 0}%` }} />
+            <div className="mt-1.5 h-[3px] overflow-hidden rounded-full bg-sunken" aria-hidden="true">
+              <div className="h-full bg-accent" style={{ width: `${cards ? (c.gotIt / cards) * 100 : 0}%` }} />
             </div>
           </div>
         </>
       ) : (
-        <p className="mt-3 text-xs text-zinc-500">
+        <p className="mt-3 text-xs text-muted">
           {kit.days} {kit.days === 1 ? "day" : "days"} · {kit.status === "generating" ? "building now" : "open it to see why"}
         </p>
       )}
-      <p className="mt-auto pt-3 text-[11px] text-zinc-400">Created {new Date(kit.createdAt).toLocaleDateString()}</p>
+      <p className="mt-auto pt-4 text-[11px] text-faint">{new Date(kit.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</p>
     </div>
   );
 }

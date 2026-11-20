@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { post } from "@/lib/api";
 import { Alert, Button, Card, Spinner } from "@/components/ui";
+import { IconCheck } from "@/components/icons";
 
 // The pipeline's steps in order (api/src/pipeline/run-pipeline.js), in plain words.
 export const STEPS = [
@@ -65,22 +66,22 @@ export function ProgressView({ kit, onChange }) {
       <Card className="mt-4 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-semibold">{generating ? "Building your kit" : "Progress"}</h2>
-            {generating && <p className="text-xs text-zinc-500">Usually 1–2 minutes. You can leave this page; it keeps going.</p>}
+            <h2 className="font-display text-2xl text-ink">{generating ? "Building your kit" : "Progress"}</h2>
+            {generating && <p className="text-xs text-muted">Usually 1–2 minutes. You can leave this page; it keeps going.</p>}
           </div>
           {generating && (
-            <span className="rounded-full bg-indigo-50 px-2.5 py-1 font-mono text-xs text-indigo-800" aria-label={`Elapsed ${elapsed}`}>
+            <span className="rounded-full bg-accent-tint px-2.5 py-1 font-mono text-xs text-accent" aria-label={`Elapsed ${elapsed}`}>
               {elapsed}
             </span>
           )}
         </div>
-        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-zinc-100" aria-hidden="true">
-          <div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${(doneCount / STEPS.length) * 100}%` }} />
+        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-sunken" aria-hidden="true">
+          <div className="h-full bg-accent transition-all duration-500" style={{ width: `${(doneCount / STEPS.length) * 100}%` }} />
         </div>
         <p className="sr-only">
           {doneCount} of {STEPS.length} steps done
         </p>
-        <ol className="relative mt-5 space-y-4 before:absolute before:bottom-2 before:left-[9px] before:top-2 before:w-px before:bg-zinc-200" aria-live="polite">
+        <ol className="relative mt-5 space-y-4 before:absolute before:bottom-2 before:left-[9px] before:top-2 before:w-px before:bg-sunken" aria-live="polite">
           {STEPS.map(({ step, label, logs: prefixes }) => {
             const state = states.get(step);
             const status = state?.status ?? "pending";
@@ -89,13 +90,13 @@ export function ProgressView({ kit, onChange }) {
               <li key={step} className="relative flex gap-3">
                 <StepIcon status={status} active={generating} />
                 <div className="min-w-0 flex-1">
-                  <p className={`text-sm ${status === "pending" ? "text-zinc-500" : "text-zinc-900"}`}>
+                  <p className={`text-sm ${status === "pending" ? "text-muted" : "text-ink"}`}>
                     {label}
-                    {status === "reused" && <span className="ml-2 text-xs text-indigo-700">reused from the earlier run</span>}
-                    {status === "done" && state.ms != null && <span className="ml-2 text-xs text-zinc-500">{(state.ms / 1000).toFixed(1)}s</span>}
+                    {status === "reused" && <span className="ml-2 text-xs text-accent">reused from the earlier run</span>}
+                    {status === "done" && state.ms != null && <span className="ml-2 text-xs text-muted">{(state.ms / 1000).toFixed(1)}s</span>}
                   </p>
                   {lines.length > 0 && (
-                    <ul className="mt-1 space-y-0.5 text-xs text-zinc-600">
+                    <ul className="mt-1 space-y-0.5 text-xs text-muted">
                       {lines.slice(-6).map((l, i) => (
                         <li key={i} className="truncate">
                           {l.message.replace(/^\w+: /, "")}
@@ -116,19 +117,19 @@ export function ProgressView({ kit, onChange }) {
 function StepIcon({ status, active }) {
   if (status === "done" || status === "reused") {
     return (
-      <span aria-label={status} className="relative mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-600 text-[11px] text-white">
-        ✓
+      <span aria-label={status} className="relative mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent text-[11px] text-surface">
+        <IconCheck className="h-3 w-3" />
       </span>
     );
   }
   if (status === "started" && active) {
     return (
-      <span aria-label="in progress" className="relative mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-white text-indigo-600">
+      <span aria-label="in progress" className="relative mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-surface text-accent">
         <Spinner />
       </span>
     );
   }
-  return <span aria-label="not started" className="relative mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-zinc-300 bg-white" />;
+  return <span aria-label="not started" className="relative mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-rule-strong bg-surface" />;
 }
 
 // "1:07" since the run started, ticking while it runs.

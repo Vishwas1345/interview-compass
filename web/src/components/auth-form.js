@@ -46,8 +46,8 @@ export function AuthForm({ mode }) {
 
   return (
     <div className="mx-auto max-w-sm">
-      <h1 className="text-2xl font-semibold tracking-tight">{register ? "Create your account" : "Sign in"}</h1>
-      <p className="mt-1 text-sm text-zinc-600">{register ? "Your kits are saved to your account." : "Welcome back. Your kits are waiting."}</p>
+      <h1 className="font-display text-[34px] leading-tight text-ink">{register ? "Create your account" : "Sign in"}</h1>
+      <p className="mt-1 text-sm text-muted">{register ? "Your kits are saved to your account." : "Welcome back. Your kits are waiting."}</p>
       {params.get("expired") && (
         <Alert tone="warning" className="mt-4">
           Your session ended. Sign in again to continue.
@@ -72,9 +72,9 @@ export function AuthForm({ mode }) {
           </Button>
         </form>
       </Card>
-      <p className="mt-4 text-center text-sm text-zinc-600">
+      <p className="mt-4 text-center text-sm text-muted">
         {register ? "Already have an account? " : "New here? "}
-        <Link className="font-medium text-indigo-700 underline-offset-2 hover:underline" href={`${register ? "/login" : "/register"}${next !== "/kits" ? `?next=${encodeURIComponent(next)}` : ""}`}>
+        <Link className="font-medium text-accent underline-offset-2 hover:underline" href={`${register ? "/login" : "/register"}${next !== "/kits" ? `?next=${encodeURIComponent(next)}` : ""}`}>
           {register ? "Sign in" : "Create an account"}
         </Link>
       </p>

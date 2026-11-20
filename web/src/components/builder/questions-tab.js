@@ -9,13 +9,6 @@ import { InlineEdit } from "@/components/builder/inline-edit";
 import { ItemState } from "@/components/builder/item-state";
 
 export const CATEGORY_LABELS = { technical: "Technical", behavioural: "Behavioural", "system-design": "System design", "company-fit": "Company fit" };
-// One colour per category: the card's left edge and the section dot.
-export const CATEGORY_COLORS = {
-  technical: { edge: "border-l-indigo-500", dot: "bg-indigo-500" },
-  behavioural: { edge: "border-l-emerald-500", dot: "bg-emerald-500" },
-  "system-design": { edge: "border-l-violet-500", dot: "bg-violet-500" },
-  "company-fit": { edge: "border-l-amber-500", dot: "bg-amber-500" },
-};
 const DIFFICULTY = { 1: "Fundamentals", 2: "Applied", 3: "Deep" };
 
 export function QuestionsTab({ ctx }) {
@@ -25,7 +18,7 @@ export function QuestionsTab({ ctx }) {
   const planReason = Object.fromEntries((kit.question_plan ?? []).map((p) => [p.category, p.reason]));
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-12">
       {QUESTION_CATEGORIES.map((category) => {
         const questions = visible.filter((q) => q.category === category);
         const protectedCount = questions.filter((q) => (q.state ?? "generated") !== "generated").length;
@@ -33,17 +26,16 @@ export function QuestionsTab({ ctx }) {
           <section key={category} aria-labelledby={`cat-${category}`}>
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div>
-                <h3 id={`cat-${category}`} className="flex items-center gap-2 font-semibold text-zinc-900">
-                  <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full ${CATEGORY_COLORS[category].dot}`} />
-                  {CATEGORY_LABELS[category]} <span className="text-sm font-normal text-zinc-500">{questions.length}</span>
+                <h3 id={`cat-${category}`} className="flex items-baseline gap-2.5 font-display text-xl text-ink">
+                  {CATEGORY_LABELS[category]} <span className="font-sans text-sm text-faint">{questions.length}</span>
                 </h3>
-                {planReason[category] && <p className="ml-[18px] text-xs text-zinc-500">Why: {planReason[category]}</p>}
+                {planReason[category] && <p className="mt-0.5 text-xs text-muted">{planReason[category]}</p>}
               </div>
               <div className="flex gap-2">
-                <Button size="sm" variant="secondary" onClick={() => setAddFor({ category })}>
+                <Button size="sm" variant="ghost" onClick={() => setAddFor({ category })}>
                   <IconPlus /> Add
                 </Button>
-                <Button size="sm" variant="secondary" disabled={Boolean(doc.regenerating)} onClick={() => setConfirmCategory({ category, protectedCount, total: questions.length })}>
+                <Button size="sm" variant="ghost" disabled={Boolean(doc.regenerating)} onClick={() => setConfirmCategory({ category, protectedCount, total: questions.length })}>
                   <IconRefresh /> Regenerate
                 </Button>
               </div>
@@ -54,7 +46,7 @@ export function QuestionsTab({ ctx }) {
                 <EmptyState title={`No ${CATEGORY_LABELS[category].toLowerCase()} questions`}>Add your own, or regenerate this category.</EmptyState>
               </div>
             ) : (
-              <ol className="mt-2.5 space-y-2">
+              <ol className="mt-4 border-t border-rule">
                 {questions.map((q, index) => (
                   <li key={q.id} id={q.id}>
                     <QuestionCard ctx={ctx} question={q} ids={questions.map((x) => x.id)} position={index + 1} />
@@ -103,20 +95,20 @@ function QuestionCard({ ctx, question: q, ids, position }) {
   };
 
   return (
-    <Card className={`border-l-4 px-3 py-2.5 sm:px-4 ${CATEGORY_COLORS[q.category].edge}`}>
-      <div className="flex items-start gap-2">
-        <span className="mt-1.5 w-5 shrink-0 text-right font-mono text-xs text-zinc-400">{position}</span>
+    <div className="group border-b border-rule py-4">
+      <div className="flex items-start gap-3">
+        <span className="mt-[7px] w-6 shrink-0 font-mono text-xs tabular-nums text-faint">{String(position).padStart(2, "0")}</span>
         <div className="min-w-0 flex-1">
-          <InlineEdit label="Question" value={q.prompt} onSave={(prompt) => act({ type: "updateQuestion", id: q.id, fields: { prompt } })} textClassName="font-medium text-zinc-900" />
-          <div className="mt-1 flex flex-wrap items-center gap-1.5 px-2 text-xs">
+          <InlineEdit label="Question" value={q.prompt} onSave={(prompt) => act({ type: "updateQuestion", id: q.id, fields: { prompt } })} textClassName="text-[15px] leading-relaxed text-ink" />
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 px-2 text-xs text-muted">
             <ItemState state={q.state} origin={q.origin} />
-            {q.fallback && <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-600" title="Added by code because the model left this must-have uncovered">fallback</span>}
+            {q.fallback && <span className="rounded bg-sunken px-1.5 py-0.5 text-muted" title="Added by code because the model left this must-have uncovered">fallback</span>}
             <label className="sr-only" htmlFor={`diff-${q.id}`}>Difficulty</label>
             <select
               id={`diff-${q.id}`}
               value={q.difficulty}
               onChange={(e) => act({ type: "updateQuestion", id: q.id, fields: { difficulty: Number(e.target.value) } })}
-              className="rounded border border-zinc-200 bg-white px-1 py-0.5 text-xs text-zinc-700"
+              className="-ml-1 rounded border-0 bg-transparent px-1 py-0 text-xs text-muted hover:text-ink"
             >
               {[1, 2, 3].map((d) => (
                 <option key={d} value={d}>
@@ -127,12 +119,12 @@ function QuestionCard({ ctx, question: q, ids, position }) {
             {q.requirement_ids.map((id) => {
               const r = requirements.find((x) => x.id === id);
               return (
-                <span key={id} title={r?.text} className={`max-w-[14rem] truncate rounded-full px-2 py-0.5 ${r?.priority === "must" ? "bg-indigo-50 text-indigo-800" : "bg-zinc-100 text-zinc-700"}`}>
+                <span key={id} title={`${r?.text} (${r?.priority === "must" ? "must-have" : "nice to have"})`} className={`max-w-[16rem] truncate ${r?.priority === "must" ? "text-ink-soft" : "text-faint"}`}>
                   {r?.text ?? id}
                 </span>
               );
             })}
-            <button type="button" onClick={() => setShowOutline((v) => !v)} aria-expanded={showOutline} className="ml-auto rounded px-1 font-medium text-indigo-700 hover:underline">
+            <button type="button" onClick={() => setShowOutline((v) => !v)} aria-expanded={showOutline} className="ml-auto rounded px-1 font-medium text-accent underline-offset-4 hover:underline">
               {showOutline ? "Hide outline" : "Show outline"}
             </button>
           </div>
@@ -144,13 +136,13 @@ function QuestionCard({ ctx, question: q, ids, position }) {
                 allowEmpty
                 placeholder="No outline yet. Click to add one."
                 onSave={(answer_outline) => act({ type: "updateQuestion", id: q.id, fields: { answer_outline } })}
-                textClassName="text-sm text-zinc-700 bg-zinc-50"
+                textClassName="text-sm leading-relaxed text-ink-soft border-l-2 border-rule pl-3 rounded-none"
               />
               <RequirementPicker requirements={requirements} selected={q.requirement_ids} onChange={(requirement_ids) => act({ type: "updateQuestion", id: q.id, fields: { requirement_ids } })} />
             </div>
           )}
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-0.5 sm:flex-row sm:items-center">
+        <div className="flex shrink-0 flex-col items-end gap-0.5 transition-opacity sm:flex-row sm:items-center sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
           <div className="flex">
             <IconButton label={`Move question ${position} up`} disabled={position === 1} onClick={() => move(-1)}>
               <IconArrowUp />
@@ -161,7 +153,7 @@ function QuestionCard({ ctx, question: q, ids, position }) {
             <IconButton label={pinned ? "Unpin" : "Pin: keep exactly as it is"} pressed={pinned} onClick={() => act({ type: "setPinned", target: "question", id: q.id, pinned: !pinned })}>
               <IconPin />
             </IconButton>
-            <IconButton label={`Delete question ${position}`} className="hover:bg-red-50 hover:text-red-700" onClick={() => deleteLater("question", q.id, `question ${position}`)}>
+            <IconButton label={`Delete question ${position}`} className="hover:bg-danger-tint hover:text-danger" onClick={() => deleteLater("question", q.id, `question ${position}`)}>
               <IconTrash />
             </IconButton>
           </div>
@@ -170,7 +162,7 @@ function QuestionCard({ ctx, question: q, ids, position }) {
             id={`move-${q.id}`}
             value=""
             onChange={(e) => e.target.value && act({ type: "moveQuestion", id: q.id, category: e.target.value })}
-            className="h-8 rounded-md border border-zinc-200 bg-white px-1.5 text-xs text-zinc-600"
+            className="h-8 rounded-md border border-rule bg-surface px-1.5 text-xs text-muted hover:border-rule-strong"
           >
             <option value="">Move…</option>
             {QUESTION_CATEGORIES.filter((c) => c !== q.category).map((c) => (
@@ -181,7 +173,7 @@ function QuestionCard({ ctx, question: q, ids, position }) {
           </select>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -190,7 +182,7 @@ export function RequirementPicker({ requirements, selected, onChange, open = fal
   if (requirements.length === 0) return null;
   return (
     <details className="mt-1" open={open}>
-      <summary className="cursor-pointer rounded px-2 text-sm text-zinc-600 hover:underline">Requirements it covers ({selected.length})</summary>
+      <summary className="cursor-pointer rounded px-2 text-sm text-muted hover:underline">Requirements it covers ({selected.length})</summary>
       <fieldset className="mt-2 grid gap-1 px-2 sm:grid-cols-2">
         <legend className="sr-only">Requirements it covers</legend>
         {requirements.map((r) => (
@@ -202,7 +194,7 @@ export function RequirementPicker({ requirements, selected, onChange, open = fal
               onChange={(e) => onChange(e.target.checked ? [...selected, r.id] : selected.filter((id) => id !== r.id))}
             />
             <span>
-              {r.text} <span className="text-xs text-zinc-500">({r.priority})</span>
+              {r.text} <span className="text-xs text-muted">({r.priority})</span>
             </span>
           </label>
         ))}
@@ -238,16 +230,16 @@ function AddQuestionForm({ ctx, preset, onDone }) {
   }
 
   return (
-    <Card className="mt-3 border-indigo-200 p-4">
+    <Card className="mt-3 border-accent/30 p-4">
       <form ref={formRef} onSubmit={submit} onKeyDown={(e) => e.key === "Escape" && onDone()} className="space-y-3">
         <p className="text-sm font-medium">New {CATEGORY_LABELS[preset.category].toLowerCase()} question</p>
         <Field label="Question" multiline rows={2} maxLength={2000} value={prompt} onChange={(e) => (setPrompt(e.target.value), setError(null))} error={error} />
         <Field label="Answer outline (optional)" multiline rows={2} maxLength={2000} value={outline} onChange={(e) => setOutline(e.target.value)} />
         <div>
-          <label htmlFor={difficultyId} className="block text-sm font-medium text-zinc-800">
+          <label htmlFor={difficultyId} className="block text-sm font-medium text-ink-soft">
             Difficulty
           </label>
-          <select id={difficultyId} value={difficulty} onChange={(e) => setDifficulty(Number(e.target.value))} className="mt-1 rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm">
+          <select id={difficultyId} value={difficulty} onChange={(e) => setDifficulty(Number(e.target.value))} className="mt-1 rounded-md border border-rule-strong bg-surface px-2 py-1.5 text-sm">
             {[1, 2, 3].map((d) => (
               <option key={d} value={d}>
                 {d} · {DIFFICULTY[d]}

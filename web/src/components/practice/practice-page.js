@@ -72,9 +72,9 @@ function PracticeInner() {
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Practise</h1>
-          <p className="truncate text-sm text-zinc-600">
-            <Link href={`/kits/${id}`} className="text-indigo-700 hover:underline">
+          <h1 className="font-display text-[34px] leading-tight text-ink">Practise</h1>
+          <p className="truncate text-sm text-muted">
+            <Link href={`/kits/${id}`} className="text-accent hover:underline">
               {doc.role || "Untitled role"} · {doc.company}
             </Link>
           </p>
@@ -109,13 +109,13 @@ function DeckPicker({ kit, practice, onStart }) {
   ];
   return (
     <Card className="p-5">
-      <h2 className="font-semibold">Choose what to practise</h2>
-      <p className="mt-1 text-sm text-zinc-600">Cards come weakest first: the ones you have not seen or marked “Again”, must-haves before nice-to-haves.</p>
+      <h2 className="font-display text-2xl text-ink">Choose what to practise</h2>
+      <p className="mt-1 text-sm text-muted">Cards come weakest first: the ones you have not seen or marked “Again”, must-haves before nice-to-haves.</p>
       <div className="mt-3">
-        <label htmlFor="practice-day" className="text-sm text-zinc-700">
+        <label htmlFor="practice-day" className="text-sm text-ink-soft">
           Schedule day{" "}
         </label>
-        <select id="practice-day" value={day} onChange={(e) => setDay(Number(e.target.value))} className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm">
+        <select id="practice-day" value={day} onChange={(e) => setDay(Number(e.target.value))} className="rounded-md border border-rule-strong bg-surface px-2 py-1 text-sm">
           {kit.schedule.days.map((d) => (
             <option key={d.day} value={d.day}>
               Day {d.day}
@@ -131,10 +131,10 @@ function DeckPicker({ kit, practice, onStart }) {
               type="button"
               disabled={o.disabled}
               onClick={() => onStart(o.deck, day)}
-              className="h-full w-full rounded-lg border border-zinc-200 bg-white p-4 text-left hover:border-indigo-400 hover:bg-indigo-50/40 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-full w-full rounded-lg border border-rule bg-surface p-4 text-left hover:border-accent/50 hover:bg-accent-tint/40 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <span className="block font-medium text-zinc-900">{o.title}</span>
-              <span className="text-sm text-zinc-600">{o.detail}</span>
+              <span className="block font-medium text-ink">{o.title}</span>
+              <span className="text-sm text-muted">{o.detail}</span>
             </button>
           </li>
         ))}
@@ -196,10 +196,10 @@ function Session({ session, setSession, doc, replace, onRestart }) {
     return (
       <Card className="p-6 text-center">
         <h2 className="text-lg font-semibold">Session complete</h2>
-        <p className="mt-1 text-sm text-zinc-600">
+        <p className="mt-1 text-sm text-muted">
           {counts[2]} got it · {counts[1]} unsure · {counts[0]} again
         </p>
-        <p className="mt-3 text-sm text-zinc-700">The next session starts with the cards you marked “Again”, then “Unsure”.</p>
+        <p className="mt-3 text-sm text-ink-soft">The next session starts with the cards you marked “Again”, then “Unsure”.</p>
         <div className="mt-5 flex justify-center gap-2">
           <Button onClick={onRestart}>Start the next session</Button>
           <Button variant="secondary" onClick={() => setSession(null)}>
@@ -213,39 +213,39 @@ function Session({ session, setSession, doc, replace, onRestart }) {
   const last = doc.practice?.[card.id];
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between text-sm text-zinc-600">
+      <div className="mb-2 flex items-center justify-between text-sm text-muted">
         <span>
           Card {session.index + 1} of {session.cards.length}
         </span>
         <span>{last ? `Last time: ${CONFIDENCE_LABELS[last.confidence]}` : "New card"}</span>
       </div>
-      <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-zinc-200" aria-hidden="true">
-        <div className="h-full bg-indigo-600 transition-all" style={{ width: `${(session.index / session.cards.length) * 100}%` }} />
+      <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-sunken" aria-hidden="true">
+        <div className="h-full bg-accent transition-all" style={{ width: `${(session.index / session.cards.length) * 100}%` }} />
       </div>
       {saveError && <Alert className="mb-3">{saveError}</Alert>}
-      <Card className="p-5">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{card.kind}</p>
-        <p className="mt-2 text-lg font-medium text-zinc-900">{card.prompt}</p>
+      <Card className="p-6 sm:p-8">
+        <p className="eyebrow">{card.kind}</p>
+        <p className="mt-3 font-display text-[26px] leading-snug text-ink">{card.prompt}</p>
         {card.requirement_ids.length > 0 && (
-          <p className="mt-2 text-xs text-zinc-500">Tests: {card.requirement_ids.map((id) => requirementsById.get(id)?.text ?? id).join(" · ")}</p>
+          <p className="mt-2 text-xs text-muted">Tests: {card.requirement_ids.map((id) => requirementsById.get(id)?.text ?? id).join(" · ")}</p>
         )}
 
         <Coach key={card.id} kitId={doc.id} card={card} />
 
         {session.revealed ? (
-          <div className="mt-4 rounded-md bg-zinc-50 p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{card.isQuestion ? "What a strong answer covers" : "Answer"}</p>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-800">{card.answer || "No outline for this question yet. Add one in the builder."}</p>
+          <div className="mt-4 rounded-md bg-paper p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">{card.isQuestion ? "What a strong answer covers" : "Answer"}</p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-ink-soft">{card.answer || "No outline for this question yet. Add one in the builder."}</p>
           </div>
         ) : (
           <Button className="mt-4" onClick={reveal}>
-            Reveal answer <kbd className="rounded bg-white/20 px-1 text-xs">Space</kbd>
+            Reveal answer <kbd className="rounded bg-surface/20 px-1 text-xs">Space</kbd>
           </Button>
         )}
 
         {session.revealed && (
           <div className="mt-4">
-            <p className="text-sm font-medium text-zinc-800">How confident were you?</p>
+            <p className="text-sm font-medium text-ink-soft">How confident were you?</p>
             <div className="mt-2 grid grid-cols-3 gap-2">
               {[CONFIDENCE.AGAIN, CONFIDENCE.UNSURE, CONFIDENCE.GOT_IT].map((c) => (
                 <Button key={c} variant={c === CONFIDENCE.GOT_IT ? "primary" : "secondary"} onClick={() => mark(c)}>
@@ -264,7 +264,7 @@ function Session({ session, setSession, doc, replace, onRestart }) {
           Skip →
         </Button>
       </div>
-      <p className="mt-2 text-center text-xs text-zinc-500">Shortcuts: Space reveals · 1 / 2 / 3 mark · ← → move</p>
+      <p className="mt-2 text-center text-xs text-muted">Shortcuts: Space reveals · 1 / 2 / 3 mark · ← → move</p>
     </div>
   );
 }
@@ -277,22 +277,22 @@ function Progress({ kit, items, practice }) {
   return (
     <Card className="h-fit p-4">
       <h2 className="text-sm font-semibold">Your progress</h2>
-      <p className="mt-0.5 text-xs text-zinc-600">
+      <p className="mt-0.5 text-xs text-muted">
         {covered} of {rows.length} requirements have at least one card marked “Got it”.
       </p>
       <ul className="mt-3 space-y-2">
         {rows.map((r) => (
           <li key={r.id}>
             <div className="flex justify-between gap-2 text-xs">
-              <span className={`truncate ${r.priority === "must" ? "font-medium text-zinc-900" : "text-zinc-600"}`} title={r.text}>
+              <span className={`truncate ${r.priority === "must" ? "font-medium text-ink" : "text-muted"}`} title={r.text}>
                 {r.text}
               </span>
-              <span className="shrink-0 text-zinc-500">
+              <span className="shrink-0 text-muted">
                 {r.gotIt}/{r.total}
               </span>
             </div>
-            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-200" role="img" aria-label={`${r.text}: ${r.gotIt} of ${r.total} cards got it`}>
-              <div className={`h-full ${r.gotIt > 0 ? "bg-emerald-500" : "bg-zinc-300"}`} style={{ width: r.total ? `${(r.gotIt / r.total) * 100}%` : "0%" }} />
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-sunken" role="img" aria-label={`${r.text}: ${r.gotIt} of ${r.total} cards got it`}>
+              <div className={`h-full ${r.gotIt > 0 ? "bg-accent" : "bg-rule-strong"}`} style={{ width: r.total ? `${(r.gotIt / r.total) * 100}%` : "0%" }} />
             </div>
           </li>
         ))}

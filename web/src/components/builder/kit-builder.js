@@ -159,9 +159,7 @@ export function KitBuilder({ doc, runOp, replace }) {
         )}
       </div>
 
-      <h2 className="mt-6 flex items-center gap-2 text-lg font-semibold text-zinc-900">
-        <section.Icon className="h-5 w-5 text-indigo-600" /> {section.label}
-      </h2>
+      <h2 className="mt-10 border-b border-rule pb-3 font-display text-[26px] leading-tight text-ink">{section.label}</h2>
 
       <div className="mt-3">
         {tab === "questions" && <QuestionsTab ctx={ctx} />}

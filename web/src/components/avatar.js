@@ -6,7 +6,7 @@ export function Avatar({ user, size = "h-8 w-8", text = "text-xs" }) {
     return <img src={`/api/profile/photo?v=${user.photoVersion}`} alt="" className={`${size} shrink-0 rounded-full object-cover`} />;
   }
   return (
-    <span aria-hidden="true" className={`${size} ${text} grid shrink-0 place-items-center rounded-full bg-indigo-100 font-semibold text-indigo-800`}>
+    <span aria-hidden="true" className={`${size} ${text} grid shrink-0 place-items-center rounded-full bg-accent-tint font-semibold text-accent`}>
       {initials(user)}
     </span>
   );

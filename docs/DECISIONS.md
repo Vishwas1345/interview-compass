@@ -219,3 +219,15 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 **Considered:** Cloudinary or S3; Render's disk; multipart uploads with multer.
 
 **Why:** MongoDB needs no new service on deploy day, and the caps keep the free cluster safe (~100 users with both files). Render's free disk is wiped on every deploy. A multipart form is exactly what a cross-site page can submit, so it would need the header guard anyway, plus a dependency. Checking bytes, not names, stops a renamed script being stored as an image; serving with `nosniff` and as an attachment stops any stored file running in our origin. 4 MB, not 5, because Vercel's proxy limits request bodies to about 4.5 MB. **Next step at scale:** object storage with signed URLs, confined to the profile routes.
+
+---
+
+## D17 — Visual system: editorial, from one set of tokens
+
+**Date:** 2026-11-20
+
+**Decision:** Warm paper background (`paper #F7F5F0`), near-black ink, one deep-green accent (`#1F5C4A`), hairline rules (`rule #E4E0D7`), warn and danger as muted ochre and brick. Newsreader (serif) for titles and figures, Geist for interface text, Geist Mono for numbering. Every colour and font is a token in `web/src/app/globals.css` (`@theme`); components use token names (`text-ink`, `border-rule`, `bg-accent`), never palette classes. Status and edit state are a dot or small capitals, not pills; notices are a coloured left rule, not a tinted box; lists are ruled rows, not stacks of cards; the brand is a wordmark, not a logo tile; icons are drawn SVG, never emoji.
+
+**Considered:** a Swiss/minimal system (white, black, signal blue, all sans); a soft SaaS system (grey canvas, shadowed cards, teal).
+
+**Why:** the first version leaned on defaults that read as machine-made: an indigo-to-violet gradient, colour on every element, emoji as icons, identical rounded cards. The kit is reading material (questions, outlines, a brief), and an editorial system serves reading: a serif for what you read, a sans for what you operate, one accent so the primary action is always obvious. Tokens make the system a single source of truth, so a new screen inherits it instead of inventing colours.

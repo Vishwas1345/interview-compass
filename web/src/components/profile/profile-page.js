@@ -54,8 +54,8 @@ function ProfileInner() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
-        <p className="mt-0.5 text-sm text-zinc-600">Your details stay private to your account. They are never sent to the AI.</p>
+        <h1 className="font-display text-[34px] leading-tight text-ink">Profile</h1>
+        <p className="mt-0.5 text-sm text-muted">Your details stay private to your account. They are never sent to the AI.</p>
       </div>
       <PhotoSection profile={profile} onSaved={saved} />
       <DetailsSection profile={profile} onSaved={saved} />
@@ -69,9 +69,9 @@ function ProfileInner() {
 
 function Section({ title, description, children, tone }) {
   return (
-    <Card className={`p-5 ${tone === "danger" ? "border-red-200" : ""}`}>
-      <h2 className={`font-semibold ${tone === "danger" ? "text-red-800" : "text-zinc-900"}`}>{title}</h2>
-      {description && <p className="mt-0.5 text-sm text-zinc-600">{description}</p>}
+    <Card className={`p-5 ${tone === "danger" ? "border-danger/30" : ""}`}>
+      <h2 className={`font-display text-xl ${tone === "danger" ? "text-danger" : "text-ink"}`}>{title}</h2>
+      {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
       <div className="mt-4">{children}</div>
     </Card>
   );
@@ -115,7 +115,7 @@ function useStatus() {
 function Status({ status }) {
   if (!status) return null;
   return (
-    <p role={status.tone === "error" ? "alert" : "status"} className={`mt-3 text-sm ${status.tone === "error" ? "text-red-700" : "text-emerald-700"}`}>
+    <p role={status.tone === "error" ? "alert" : "status"} className={`mt-3 text-sm ${status.tone === "error" ? "text-danger" : "text-accent"}`}>
       {status.text}
     </p>
   );
@@ -247,7 +247,7 @@ function DetailsSection({ profile, onSaved }) {
           error={errors.bio}
         />
         <div className="mt-4 flex items-center justify-end gap-3">
-          {dirty && <span className="text-xs text-zinc-500">Unsaved changes</span>}
+          {dirty && <span className="text-xs text-muted">Unsaved changes</span>}
           <Button type="submit" busy={busy} disabled={!dirty}>
             Save details
           </Button>
@@ -295,17 +295,17 @@ function ResumeSection({ profile, onSaved }) {
   return (
     <Section title="Résumé" description="One PDF, up to 4 MB. Stored for you to download; the app never reads it.">
       {resume ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3">
-          <span aria-hidden="true" className="grid h-9 w-9 place-items-center rounded bg-red-100 text-[10px] font-bold text-red-700">
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-rule bg-paper px-4 py-3">
+          <span aria-hidden="true" className="grid h-9 w-9 place-items-center rounded bg-danger-tint text-[10px] font-bold text-danger">
             PDF
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-zinc-900">{resume.filename}</p>
-            <p className="text-xs text-zinc-500">
+            <p className="truncate text-sm font-medium text-ink">{resume.filename}</p>
+            <p className="text-xs text-muted">
               {formatSize(resume.size)} · uploaded {new Date(resume.uploadedAt).toLocaleDateString()}
             </p>
           </div>
-          <a href="/api/profile/resume" className="rounded-md px-2.5 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-50">
+          <a href="/api/profile/resume" className="rounded-md px-2.5 py-1.5 text-sm font-medium text-accent hover:bg-accent-tint">
             Download
           </a>
           <FilePicker accept="application/pdf" label="Replace" busy={busy} onFile={choose} />
@@ -314,8 +314,8 @@ function ResumeSection({ profile, onSaved }) {
           </Button>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed border-zinc-300 px-4 py-4">
-          <p className="text-sm text-zinc-600">No résumé uploaded yet.</p>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed border-rule-strong px-4 py-4">
+          <p className="text-sm text-muted">No résumé uploaded yet.</p>
           <FilePicker accept="application/pdf" label="Upload résumé" busy={busy} onFile={choose} variant="primary" />
         </div>
       )}

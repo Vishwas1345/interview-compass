@@ -77,8 +77,8 @@ function CreateKitFormInner() {
   const existing = duplicate?.existing;
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-semibold tracking-tight">New prep kit</h1>
-      <p className="mt-1 text-sm text-zinc-600">Generation takes about one to two minutes. You can leave the page; it keeps going.</p>
+      <h1 className="font-display text-[34px] leading-tight text-ink">New prep kit</h1>
+      <p className="mt-1 text-sm text-muted">Generation takes about one to two minutes. You can leave the page; it keeps going.</p>
       <Card className="mt-6 p-5">
         <form onSubmit={submit} noValidate className="space-y-5">
           <Field
@@ -91,7 +91,7 @@ function CreateKitFormInner() {
             error={errors.jd}
             maxLength={JD_MAX + 1000}
           />
-          <p className="-mt-3 text-right text-xs text-zinc-500">
+          <p className="-mt-3 text-right text-xs text-muted">
             {form.jd.length.toLocaleString()} / {JD_MAX.toLocaleString()}
           </p>
           <div className="grid gap-5 sm:grid-cols-[1fr_9rem]">

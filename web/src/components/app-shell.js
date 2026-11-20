@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "@/components/session";
 import { Avatar } from "@/components/avatar";
+import { Brand } from "@/components/brand";
 import { AppHeader } from "@/components/app-header";
 import {
   IconBuilding, IconCalendar, IconCards, IconClose, IconKits, IconLogOut, IconMenu, IconPlay, IconPlus, IconQuestions, IconSearch, IconTarget,
@@ -48,23 +49,23 @@ export function AppShell({ children }) {
   return (
     <div className="flex min-h-full flex-1">
       {/* Phone top bar */}
-      <div className="fixed inset-x-0 top-0 z-30 flex items-center gap-3 border-b border-zinc-200 bg-white px-4 py-2.5 lg:hidden">
-        <button type="button" onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open} aria-controls="sidebar" className="rounded-md p-1.5 text-zinc-700 hover:bg-zinc-100">
+      <div className="fixed inset-x-0 top-0 z-30 flex items-center gap-3 border-b border-rule bg-paper/90 px-4 py-3 backdrop-blur lg:hidden">
+        <button type="button" onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open} aria-controls="sidebar" className="rounded-md p-1.5 text-ink-soft hover:bg-sunken">
           <IconMenu className="h-5 w-5" />
         </button>
-        <Brand />
+        <Brand href="/kits" />
       </div>
-      {open && <div className="fixed inset-0 z-40 bg-zinc-900/40 lg:hidden" onClick={() => setOpen(false)} aria-hidden="true" />}
+      {open && <div className="fixed inset-0 z-40 bg-ink/40 lg:hidden" onClick={() => setOpen(false)} aria-hidden="true" />}
 
       <aside
         id="sidebar"
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-zinc-200 bg-white transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-rule bg-surface/80 backdrop-blur transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between px-4 py-4">
-          <Brand />
-          <button type="button" onClick={() => setOpen(false)} aria-label="Close menu" className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 lg:hidden">
+        <div className="flex items-center justify-between px-5 pb-6 pt-6">
+          <Brand href="/kits" />
+          <button type="button" onClick={() => setOpen(false)} aria-label="Close menu" className="rounded-md p-1.5 text-muted hover:bg-sunken lg:hidden">
             <IconClose className="h-5 w-5" />
           </button>
         </div>
@@ -75,36 +76,28 @@ export function AppShell({ children }) {
             <SidebarNav onNavigate={() => setOpen(false)} />
           </Suspense>
         </nav>
-        <div className="border-t border-zinc-200 px-3 py-3">
+        <div className="border-t border-rule px-3 py-4">
           <Suspense fallback={<ProfileLink user={session.user} onNavigate={() => setOpen(false)} />}>
             <ProfileLinkActive user={session.user} onNavigate={() => setOpen(false)} />
           </Suspense>
-          <button type="button" onClick={session.signOut} className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100">
+          <button type="button" onClick={session.signOut} className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink-soft hover:bg-sunken">
             <IconLogOut /> Sign out
           </button>
         </div>
       </aside>
 
-      <main id="main" className="min-w-0 flex-1 px-4 pb-10 pt-16 sm:px-6 lg:px-10 lg:pt-8">
+      <main id="main" className="min-w-0 flex-1 px-5 pb-16 pt-20 sm:px-8 lg:px-12 lg:pt-12">
         <div className="mx-auto max-w-5xl">{children}</div>
       </main>
     </div>
   );
 }
 
-function Brand() {
-  return (
-    <Link href="/kits" className="flex items-center gap-2 font-semibold text-zinc-900">
-      <span aria-hidden="true" className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-bold text-white">
-        IC
-      </span>
-      InterviewCompass
-    </Link>
-  );
-}
-
+// Active: ink text on a sunken row with an accent rule at the edge; idle: soft ink.
 const linkClass = (active) =>
-  `flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm ${active ? "bg-indigo-50 font-medium text-indigo-800" : "text-zinc-700 hover:bg-zinc-100"}`;
+  `relative flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] transition-colors ${
+    active ? "bg-sunken font-medium text-ink before:absolute before:inset-y-1.5 before:-left-3 before:w-[3px] before:rounded-r before:bg-accent" : "text-ink-soft hover:bg-sunken/70 hover:text-ink"
+  }`;
 
 function StaticNav() {
   return (
@@ -147,7 +140,7 @@ function SidebarNav({ onNavigate }) {
       </ul>
       {kitId && (
         <>
-          <p className="mt-6 px-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">This kit</p>
+          <p className="eyebrow mt-7 px-2.5">This kit</p>
           <ul className="mt-1 space-y-0.5">
             {KIT_SECTIONS.map(({ id, label, Icon }) => {
               const active = !practising && tab === id;
@@ -164,7 +157,7 @@ function SidebarNav({ onNavigate }) {
                 href={`/kits/${kitId}/practice`}
                 onClick={onNavigate}
                 aria-current={practising ? "page" : undefined}
-                className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium ${practising ? "bg-indigo-600 text-white" : "bg-indigo-50 text-indigo-800 hover:bg-indigo-100"}`}
+                className={`flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13.5px] font-medium transition-colors ${practising ? "bg-accent text-surface" : "text-accent hover:bg-accent-tint"}`}
               >
                 <IconPlay /> Practise
               </Link>
@@ -179,11 +172,11 @@ function SidebarNav({ onNavigate }) {
 // The signed-in user at the bottom of the sidebar; opens the profile page.
 function ProfileLink({ user, onNavigate, active = false }) {
   return (
-    <Link href="/profile" onClick={onNavigate} aria-current={active ? "page" : undefined} className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 ${active ? "bg-indigo-50" : "hover:bg-zinc-100"}`}>
+    <Link href="/profile" onClick={onNavigate} aria-current={active ? "page" : undefined} className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 ${active ? "bg-accent-tint" : "hover:bg-sunken"}`}>
       <Avatar user={user} />
       <span className="min-w-0">
-        <span className="block truncate text-sm font-medium text-zinc-900">{user.name || user.email}</span>
-        <span className="block truncate text-xs text-zinc-500">{user.jobTitle || (user.name ? user.email : "Your profile")}</span>
+        <span className="block truncate text-sm font-medium text-ink">{user.name || user.email}</span>
+        <span className="block truncate text-xs text-muted">{user.jobTitle || (user.name ? user.email : "Your profile")}</span>
       </span>
     </Link>
   );

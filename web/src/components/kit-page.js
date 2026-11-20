@@ -56,15 +56,16 @@ function KitPageInner() {
     <div>
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-2xl font-semibold tracking-tight text-zinc-900">{kit.role || (kit.status === "ready" ? "Untitled role" : "New kit")}</h1>
+          <p className="eyebrow">{kit.company}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <h1 className="font-display truncate text-[34px] leading-tight text-ink">{kit.role || (kit.status === "ready" ? "Untitled role" : "New kit")}</h1>
             <StatusBadge status={kit.status} />
           </div>
-          <p className="mt-0.5 text-sm text-zinc-600">
-            {kit.company} · {kit.days} {kit.days === 1 ? "day" : "days"} · created {new Date(kit.createdAt).toLocaleDateString()}
+          <p className="mt-1.5 text-sm text-muted">
+            {kit.days} {kit.days === 1 ? "day" : "days"} to prepare · created {new Date(kit.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}
           </p>
         </div>
-        <Button size="sm" variant="ghost" className="text-zinc-500 hover:text-red-700" onClick={() => setConfirmDelete(true)}>
+        <Button size="sm" variant="ghost" className="text-faint hover:bg-danger-tint hover:text-danger" onClick={() => setConfirmDelete(true)}>
           <IconTrash /> Delete kit
         </Button>
       </div>
@@ -120,24 +121,23 @@ function KitStats({ doc }) {
   const cards = [...kit.questions, ...kit.flashcards];
   const gotIt = cards.filter((c) => practice[c.id]?.confidence === CONFIDENCE.GOT_IT).length;
   const minutes = kit.schedule.days.reduce((sum, d) => sum + d.minutes, 0);
-  const categories = new Set(kit.questions.map((q) => q.category)).size;
   const stats = [
     { label: "Requirements", value: kit.role.requirements.length, detail: `${musts.length} must-have` },
-    { label: "Must-haves covered", value: `${covered}/${musts.length}`, detail: covered === musts.length ? "every one has a question" : `${musts.length - covered} without a question`, tone: covered === musts.length ? "good" : "warn" },
-    { label: "Questions", value: kit.questions.length, detail: `${categories} categor${categories === 1 ? "y" : "ies"} · ${kit.flashcards.length} flashcards` },
-    { label: "Schedule", value: `${kit.schedule.days.length} day${kit.schedule.days.length === 1 ? "" : "s"}`, detail: `about ${Math.max(1, Math.round(minutes / 60))} h in total` },
-    { label: "Practised", value: `${gotIt}/${cards.length}`, detail: "cards marked Got it", progress: cards.length ? gotIt / cards.length : 0 },
+    { label: "Must-haves covered", value: `${covered}/${musts.length}`, detail: covered === musts.length ? "all have a question" : `${musts.length - covered} without a question`, warn: covered !== musts.length },
+    { label: "Questions", value: kit.questions.length, detail: `${kit.flashcards.length} flashcards` },
+    { label: "Schedule", value: kit.schedule.days.length, detail: `day${kit.schedule.days.length === 1 ? "" : "s"} · about ${Math.max(1, Math.round(minutes / 60))} h` },
+    { label: "Practised", value: `${gotIt}/${cards.length}`, detail: "marked Got it", progress: cards.length ? gotIt / cards.length : 0 },
   ];
   return (
-    <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-      {stats.map((s) => (
-        <div key={s.label} className="rounded-lg border border-zinc-200 bg-white px-4 py-3">
-          <dt className="text-xs font-medium text-zinc-500">{s.label}</dt>
-          <dd className={`mt-1 text-xl font-semibold ${s.tone === "warn" ? "text-amber-700" : s.tone === "good" ? "text-emerald-700" : "text-zinc-900"}`}>{s.value}</dd>
-          <dd className="truncate text-xs text-zinc-500">{s.detail}</dd>
+    <dl className="mt-7 grid grid-cols-2 border-y border-rule sm:grid-cols-3 lg:grid-cols-5">
+      {stats.map((s, i) => (
+        <div key={s.label} className={`px-4 py-4 first:pl-0 ${i > 0 ? "lg:border-l lg:border-rule" : ""}`}>
+          <dt className="eyebrow">{s.label}</dt>
+          <dd className={`mt-1.5 font-display text-[30px] leading-none ${s.warn ? "text-warn" : "text-ink"}`}>{s.value}</dd>
+          <dd className="mt-1.5 truncate text-xs text-muted">{s.detail}</dd>
           {s.progress !== undefined && (
-            <dd className="mt-2 h-1 overflow-hidden rounded-full bg-zinc-100" aria-hidden="true">
-              <div className="h-full bg-indigo-500" style={{ width: `${s.progress * 100}%` }} />
+            <dd className="mt-2 h-[3px] overflow-hidden rounded-full bg-sunken" aria-hidden="true">
+              <div className="h-full bg-accent" style={{ width: `${s.progress * 100}%` }} />
             </dd>
           )}
         </div>

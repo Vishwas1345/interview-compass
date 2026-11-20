@@ -31,14 +31,14 @@ export function Coach({ kitId, card }) {
 
   if (!open) {
     return (
-      <Button variant="ghost" size="sm" className="mt-3 -ml-2 text-indigo-700" onClick={() => setOpen(true)}>
+      <Button variant="ghost" size="sm" className="mt-3 -ml-2 text-accent" onClick={() => setOpen(true)}>
         ✎ Rehearse: type your answer and get feedback
       </Button>
     );
   }
   return (
-    <form onSubmit={check} className="mt-4 rounded-md border border-indigo-100 bg-indigo-50/40 p-3">
-      <label htmlFor={`answer-${card.id}`} className="text-sm font-medium text-zinc-800">
+    <form onSubmit={check} className="mt-4 rounded-md border border-accent/20 bg-accent-tint/40 p-3">
+      <label htmlFor={`answer-${card.id}`} className="text-sm font-medium text-ink-soft">
         Your answer
       </label>
       <textarea
@@ -50,16 +50,16 @@ export function Coach({ kitId, card }) {
         onChange={(e) => setAnswer(e.target.value)}
         onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === "Enter" && check(e)}
         placeholder="Answer as you would out loud. The coach compares it with the outline."
-        className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm"
+        className="mt-1 block w-full rounded-md border border-rule-strong bg-surface px-3 py-2 text-sm"
       />
       <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="text-xs text-zinc-500">{answer.length}/{ANSWER_MAX} · Ctrl/⌘+Enter to check</span>
+        <span className="text-xs text-muted">{answer.length}/{ANSWER_MAX} · Ctrl/⌘+Enter to check</span>
         <Button type="submit" size="sm" busy={busy}>
           Check my answer
         </Button>
       </div>
       {error && (
-        <p role="alert" className="mt-2 text-sm text-red-700">
+        <p role="alert" className="mt-2 text-sm text-danger">
           {error}
         </p>
       )}
@@ -67,8 +67,8 @@ export function Coach({ kitId, card }) {
         <div aria-live="polite" className="mt-3 space-y-2 text-sm">
           {feedback.covered.length > 0 && (
             <div>
-              <p className="font-medium text-emerald-800">You covered</p>
-              <ul className="list-disc pl-5 text-zinc-700">
+              <p className="font-medium text-accent">You covered</p>
+              <ul className="list-disc pl-5 text-ink-soft">
                 {feedback.covered.map((x) => (
                   <li key={x}>{x}</li>
                 ))}
@@ -77,8 +77,8 @@ export function Coach({ kitId, card }) {
           )}
           {feedback.missed.length > 0 && (
             <div>
-              <p className="font-medium text-amber-800">You missed</p>
-              <ul className="list-disc pl-5 text-zinc-700">
+              <p className="font-medium text-warn">You missed</p>
+              <ul className="list-disc pl-5 text-ink-soft">
                 {feedback.missed.map((x) => (
                   <li key={x}>{x}</li>
                 ))}
@@ -87,7 +87,7 @@ export function Coach({ kitId, card }) {
           )}
           {feedback.improvement && (
             <p>
-              <span className="font-medium text-indigo-800">Next: </span>
+              <span className="font-medium text-accent">Next: </span>
               {feedback.improvement}
             </p>
           )}
