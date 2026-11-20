@@ -3,8 +3,9 @@
 
 import { Router } from "express";
 import { z } from "zod";
-import { HttpError } from "../middlewares/error-handler.js";
-import { requireUser, readCookie, sessionCookieOptions } from "../middlewares/auth.middleware.js";
+import { HttpError } from "../utils/http-error.js";
+import { requireUser } from "../middlewares/auth.middleware.js";
+import { readCookie, sessionCookieOptions } from "../utils/cookies.js";
 import { hashPassword, verifyPassword, burnPasswordCheck } from "../services/password.service.js";
 import { SESSION_COOKIE } from "../services/session.service.js";
 import { publicUser } from "../views/user.view.js";

@@ -6,7 +6,7 @@ import { Router } from "express";
 import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { DAYS_MIN, DAYS_MAX } from "@interview-compass/shared";
-import { HttpError } from "../middlewares/error-handler.js";
+import { HttpError } from "../utils/http-error.js";
 import { MAX_JD_CHARS } from "../pipeline/extraction/extract-requirements.js";
 import { dedupeKey } from "../services/dedupe.service.js";
 import { applyOp } from "../services/kit-ops.service.js";

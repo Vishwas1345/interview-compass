@@ -1,6 +1,7 @@
 import express from "express";
 import { errorHandler } from "./middlewares/error-handler.js";
-import { requireJson, requireUser } from "./middlewares/auth.middleware.js";
+import { requireUser } from "./middlewares/auth.middleware.js";
+import { requireJson } from "./middlewares/json.middleware.js";
 import { createSessionStore } from "./services/session.service.js";
 import { authRoutes } from "./routes/auth.routes.js";
 import { kitRoutes } from "./routes/kit.routes.js";

@@ -7,7 +7,7 @@
 
 import { z } from "zod";
 import { QUESTION_CATEGORIES, DAYS_MIN, DAYS_MAX } from "@interview-compass/shared";
-import { HttpError } from "../middlewares/error-handler.js";
+import { HttpError } from "../utils/http-error.js";
 import { allocateSchedule } from "../pipeline/schedule/allocate.js";
 import { findUncovered } from "../pipeline/coverage/coverage.js";
 

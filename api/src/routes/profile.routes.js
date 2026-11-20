@@ -3,8 +3,8 @@
 
 import express, { Router } from "express";
 import { z } from "zod";
-import { HttpError } from "../middlewares/error-handler.js";
-import { requireUploadHeader } from "../middlewares/auth.middleware.js";
+import { HttpError } from "../utils/http-error.js";
+import { requireUploadHeader } from "../middlewares/upload.middleware.js";
 import { profileView } from "../views/user.view.js";
 import { detectFileType, safeFilename } from "../services/file.service.js";
 

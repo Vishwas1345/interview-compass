@@ -1,18 +1,10 @@
-// Every API error leaves as { error: { code, message } }, the same shape the batch
-// output uses, plus optional extra fields (e.g. the existing kit for a duplicate).
+// The last middleware: every error leaves as { error: { code, message } }, the
+// same shape the batch output uses, plus optional extra fields (e.g. the existing
+// kit for a duplicate).
 
 import { z } from "zod";
+import { HttpError } from "../utils/http-error.js";
 import { PipelineError, ERROR_CODES } from "../pipeline/errors.js";
-
-export class HttpError extends Error {
-  constructor(status, code, message, extra = {}) {
-    super(message);
-    this.name = "HttpError";
-    this.status = status;
-    this.code = code;
-    this.extra = extra;
-  }
-}
 
 const PIPELINE_STATUS = {
   [ERROR_CODES.INVALID_INPUT]: 400,
