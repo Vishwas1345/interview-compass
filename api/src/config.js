@@ -13,6 +13,9 @@ export function loadConfig(env = process.env) {
     // Private/loopback fetches are allowed unless explicitly disabled; production
     // disables them by default (D6). The batch CLI must reach localhost sites.
     allowPrivateUrls: parseBoolean(env.ALLOW_PRIVATE_URLS, !production),
+    // Needed by the server only; the batch CLI runs without a database.
+    mongodbUri: env.MONGODB_URI || "",
+    port: Number(env.PORT) || 4000,
   };
 }
 

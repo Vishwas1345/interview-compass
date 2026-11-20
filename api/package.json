@@ -14,7 +14,11 @@
     "@interview-compass/shared": "*",
     "cheerio": "^1.2.0",
     "express": "^5.1.0",
+    "mongodb": "^7.9.1",
     "robots-parser": "^3.0.1",
     "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.3.0"
   }
 }

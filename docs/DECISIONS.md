@@ -135,3 +135,27 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 **Why:** generation takes 60–90 seconds, which suits a long-running process and not a function with a short timeout; fitting it into functions would mean splitting the pipeline purely to dodge a platform limit. Render's free tier needs no card and is well documented. Vercel is the native home for Next.js. A kit is a few KB, so Atlas M0 (512 MB) is ample.
 
 **Cost we accept:** Render's free service sleeps after ~15 minutes idle and takes ~50 seconds to wake; the UI pings the API on load and shows a "waking the server" state rather than a silent hang.
+
+---
+
+## D10 — Sessions: a server-side session in a first-party httpOnly cookie
+
+**Date:** 2026-11-20
+
+**Decision:** Login sets `ic_session`, a random 32-byte token, in an `httpOnly`, `SameSite=Lax` cookie (`Secure` in production) lasting 7 days and renewed at most once a day while used. MongoDB stores only the token's SHA-256 with an expiry (TTL index). The web app proxies `/api/*` to the API, so the browser only ever talks to the web origin and the cookie is first-party. Passwords use Node's `scrypt` with a per-user salt, compared in constant time; an unknown email runs a dummy hash so timing does not reveal which emails exist. Mutations must be JSON (a declared body type other than `application/json` gets 415), which with `SameSite=Lax` blocks cross-site form posts.
+
+**Considered:** the API setting its cookie directly on its own domain (`SameSite=None`); a JWT kept in `localStorage` and sent as a header.
+
+**Why:** the web app (Vercel) and the API (Render) are on different sites, so a cookie set by the API is third-party, which Safari blocks and Chrome restricts. A JWT in `localStorage` is readable by any injected script and cannot be revoked at logout. Server-side sessions make logout and expiry real, and hashing the stored token means a database leak exposes no live session.
+
+---
+
+## D11 — MongoDB through the official driver; tests on a real throwaway MongoDB
+
+**Date:** 2026-11-20
+
+**Decision:** The API uses the official `mongodb` driver with no ODM. Collections and indexes are declared in one module (`api/src/db/mongo.js`). Tests run against `mongodb-memory-server`, a real `mongod` started per test file.
+
+**Considered:** Mongoose; a hand-written in-memory fake of the collections; a test database on Atlas.
+
+**Why:** the kit is already validated by the shared zod contract (`validateKit`), so a Mongoose schema would be a second copy that drifts from it. A fake would not enforce unique and partial indexes, and those indexes carry real rules ("one account per email", "one generation per user"). An Atlas test database would make `npm test` fail from a clean clone without credentials. **Cost we accept:** the first test run downloads a ~77 MB `mongod` binary, cached afterwards.
