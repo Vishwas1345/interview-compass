@@ -80,6 +80,25 @@ test("a 400 is permanent: no retry", async () => {
   assert.equal(provider.requests.length, 1);
 });
 
+// Groq's JSON mode rejects malformed model output itself, as a 400 (seen live).
+const jsonValidateFailed = (failed) => ({
+  status: 400,
+  body: { error: { message: "Failed to generate JSON.", type: "invalid_request_error", code: "json_validate_failed", failed_generation: failed } },
+});
+
+test("a provider-side JSON failure (400 json_validate_failed) is repaired like invalid output", async () => {
+  const { llm, provider } = client([jsonValidateFailed('{"items": ["a"'), ok({ items: ["fixed"] })]);
+  const result = await llm.chatJson(call);
+  assert.deepEqual(result.data, { items: ["fixed"] });
+  assert.equal(provider.requests[1].messages.at(-2).content, '{"items": ["a"', "the failed text is shown back to the model");
+  assert.match(provider.requests[1].messages.at(-1).content, /not valid JSON/);
+});
+
+test("a provider-side JSON failure twice is LLM_BAD_OUTPUT, so the pipeline can degrade the step", async () => {
+  const { llm } = client([jsonValidateFailed("{"), jsonValidateFailed("{")]);
+  await assert.rejects(llm.chatJson(call), { code: "LLM_BAD_OUTPUT" });
+});
+
 test("invalid JSON gets one repair attempt that includes the problem", async () => {
   const { llm, provider } = client([{ body: { choices: [{ message: { content: "not json" } }], usage: {} } }, ok({ items: ["fixed"] })]);
   const result = await llm.chatJson(call);

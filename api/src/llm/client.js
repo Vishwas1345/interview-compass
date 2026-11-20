@@ -95,9 +95,16 @@ export function createLlmClient({
         return { content: payload.choices?.[0]?.message?.content ?? "", usage: payload.usage };
       }
 
+      const text = await response.text();
+      // Groq's JSON mode rejects malformed model output itself with a 400. That is
+      // bad output, not a bad request: hand the failed text to the repair path.
+      // The slot keeps its estimate, since the failed generation still used tokens.
+      const failedGeneration = response.status === 400 ? jsonValidateFailure(text) : null;
+      if (failedGeneration !== null) return { content: failedGeneration, usage: undefined };
+
       slot.settle(0);
       const retryAfterMs = parseRetryAfter(response.headers.get("retry-after"));
-      const detail = (await response.text()).slice(0, 300);
+      const detail = text.slice(0, 300);
       lastError = `HTTP ${response.status}: ${detail}`;
 
       if (response.status === 429) {
@@ -124,6 +131,16 @@ export function createLlmClient({
   }
 
   return { chatJson };
+}
+
+// The failed text from a json_validate_failed 400, or null for any other 400.
+function jsonValidateFailure(text) {
+  try {
+    const error = JSON.parse(text).error;
+    return error?.code === "json_validate_failed" ? String(error.failed_generation ?? "") : null;
+  } catch {
+    return null;
+  }
 }
 
 function check(content, schema) {
