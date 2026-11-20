@@ -1,0 +1,26 @@
+# Dependencies and builds
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+
+# Environment — only the example is committed
+.env
+.env.*
+!.env.example
+
+# Plans are local throwaways (see AGENTS.md)
+**/PLAN.md
+**/*_PLAN.md
+
+# Batch run outputs
+kits.json
+*.kits.json
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.log
