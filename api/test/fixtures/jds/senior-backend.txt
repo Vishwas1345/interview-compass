@@ -1,0 +1,26 @@
+Senior Backend Engineer — Ground Platform
+Acme Rockets · Austin, TX or Remote (US)
+
+About the role
+Our ground platform ingests telemetry from every flight and turns it into the dashboards our launch team relies on.
+You will own services that process millions of telemetry points per minute.
+
+What you'll do
+- Design, build and operate Node.js services that ingest and query rocket telemetry
+- Own the PostgreSQL schema and query performance for our time-series data
+- Lead design reviews and write clear technical proposals
+- Mentor two mid-level engineers on the team
+- Take part in a one-week on-call rotation every six weeks
+
+What you need
+- 5+ years of professional backend development experience
+- Strong experience with Node.js and TypeScript in production
+- Deep knowledge of PostgreSQL, including indexing and query planning
+- Experience designing REST APIs used by other teams
+- Clear written communication; we work async across time zones
+- You have mentored or coached other engineers
+
+Bonus points for
+- Experience with Kafka or another streaming platform
+- Familiarity with Rust
+- Background in aerospace or other safety-critical industries
