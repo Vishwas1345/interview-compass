@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /* config options here */
-  transpilePackages: ["@trao/shared"],
+  transpilePackages: ["@interview-compass/shared"],
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

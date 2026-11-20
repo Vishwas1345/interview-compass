@@ -11,12 +11,12 @@ _Pending — brainstorm._
 npm workspaces (see D2). One `npm install` at the root installs all three.
 
 ```
-trao-assignment/
+interview-compass/
 ├── package.json          workspaces; root scripts: evaluate, test, lint, dev:api, dev:web
 ├── .env.example          every env var, documented
-├── shared/               @trao/shared — the kit contract (Appendix A), used by api and web
+├── shared/               @interview-compass/shared — the kit contract (Appendix A), used by api and web
 │   └── src/index.js
-├── api/                  @trao/api — Express server, pipeline, batch CLI
+├── api/                  @interview-compass/api — Express server, pipeline, batch CLI
 │   ├── src/
 │   │   ├── app.js        builds the Express app (no listen — tests mount it)
 │   │   ├── server.js     listens on PORT
@@ -31,7 +31,7 @@ trao-assignment/
 │   │   ├── db/           MongoDB access
 │   │   └── cli/evaluate.js   `npm run evaluate -- --input … --output …`
 │   └── test/             node:test
-├── web/                  @trao/web — Next.js 16 + Tailwind 4 (App Router, src/)
+├── web/                  @interview-compass/web — Next.js 16 + Tailwind 4 (App Router, src/)
 ├── docs/                 brief, architecture, decisions, gaps, specs
 └── .claude/skills/       project skills for repeated workflows
 ```

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-AI Interview Prep Kit: a take-home assessment for Trao. A user pastes a job description, gives a company URL and a number of days; the app researches the company and generates an editable, practisable prep kit.
+InterviewCompass, an AI interview prep kit built as a take-home assessment for Trao. A user pastes a job description, gives a company URL and a number of days; the app researches the company and generates an editable, practisable prep kit.
 
 ## Docs — read before changing anything
 

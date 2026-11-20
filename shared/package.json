@@ -1,5 +1,5 @@
 {
-  "name": "@trao/shared",
+  "name": "@interview-compass/shared",
   "version": "0.1.0",
   "private": true,
   "description": "The kit contract (Appendix A) shared by the pipeline, the API and the UI.",

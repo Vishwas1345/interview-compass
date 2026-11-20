@@ -12,7 +12,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "AI Interview Prep Kit",
+  title: "InterviewCompass",
   description: "Turn a job description into a personalised interview prep kit.",
 };
 
