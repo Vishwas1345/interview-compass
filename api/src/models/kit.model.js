@@ -39,7 +39,6 @@ export function createKitModel(db) {
     listSummaries: (userId) => kits.find({ userId }, { projection: SUMMARY_PROJECTION }).sort({ createdAt: -1 }).limit(200).toArray(),
     findGenerating: (userId) => kits.findOne({ userId, status: "generating" }),
     findLatestByKey: (userId, dedupeKey) => kits.findOne({ userId, dedupeKey, status: { $ne: "failed" } }, { sort: { createdAt: -1 } }),
-    countCreatedSince: (userId, since) => kits.countDocuments({ userId, createdAt: { $gt: since } }),
     async findPracticeEntry(id, itemId) {
       return (await kits.findOne({ _id: id }, { projection: { [`practice.${itemId}`]: 1 } }))?.practice?.[itemId] ?? null;
     },

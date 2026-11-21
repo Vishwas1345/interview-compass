@@ -122,7 +122,7 @@ Next.js 16 App Router (`web/src/app`), JavaScript, Tailwind 4, no component or s
 ## Security
 
 - **Untrusted text is data.** The posting, fetched pages, search results, and user-written kit text sent back to the model (regeneration avoid-lists, coach answers) are wrapped in `<untrusted_content>` with look-alike tags stripped; every system prompt carries the rule to treat them as data. Live test: injected instructions in a posting and on a company page left the kit unchanged.
-- **Fetching (D6).** URLs are normalised and checked; private, loopback and link-local addresses are refused in production, re-checked on every redirect; HTML only, 2 MB cap, 10 s timeout, robots.txt respected.
+- **Fetching (D6).** URLs are normalised and checked; private, loopback, link-local and reserved addresses are refused in production by range (`net.BlockList`; IPv6 only in `2000::/3`, so IPv4-mapped forms in any notation are refused), re-checked on every redirect, and a redirect that is malformed or not http(s) is a skipped page; HTML only, 2 MB cap, 10 s timeout, robots.txt respected.
 - **Accounts (D10).** scrypt passwords; session tokens stored only as SHA-256; `httpOnly`, `SameSite=Lax`, `Secure` cookies; JSON-only mutations against CSRF; one message for wrong email or password.
 - **Authorisation.** Every kit query includes the user's id; another user's kit is "not found".
 - **Uploads (D16).** Raw bodies behind a custom-header guard; type from the file's bytes; 1 MB photo, 4 MB résumé; served with the detected type and `nosniff`, the résumé as a sandboxed attachment; only the owner's own files are reachable. The résumé is never read.

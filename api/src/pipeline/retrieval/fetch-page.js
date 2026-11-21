@@ -66,7 +66,18 @@ export function createFetcher({
       }
 
       if (response.status >= 300 && response.status < 400 && response.headers.get("location")) {
-        url = new URL(response.headers.get("location"), url);
+        // A malformed or non-web Location is a skipped page, never a thrown error
+        // (review C4); the next hop is checked by the guard at the top of the loop.
+        let next;
+        try {
+          next = new URL(response.headers.get("location"), url);
+        } catch {
+          return { ok: false, url: url.href, status: response.status, reason: "bad redirect (malformed Location)" };
+        }
+        if (next.protocol !== "http:" && next.protocol !== "https:") {
+          return { ok: false, url: url.href, status: response.status, reason: `bad redirect (to ${next.protocol} URL)` };
+        }
+        url = next;
         continue;
       }
       if (!response.ok) {

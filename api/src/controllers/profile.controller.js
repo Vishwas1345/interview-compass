@@ -8,10 +8,16 @@ import { profileView } from "../views/user.view.js";
 const DOWNLOAD_HEADERS = {
   photo: () => ({}),
   resume: (file) => ({
-    "Content-Disposition": `attachment; filename="resume.pdf"; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+    "Content-Disposition": `attachment; filename="resume.pdf"; filename*=UTF-8''${encodeRfc5987(file.filename)}`,
     "Content-Security-Policy": "sandbox",
   }),
 };
+
+// encodeURIComponent leaves ' ( ) * unencoded; RFC 5987 (filename*) needs them
+// encoded, or strict browsers ignore the name (review C9).
+function encodeRfc5987(value) {
+  return encodeURIComponent(value).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+}
 
 export function createProfileController({ profile }) {
   return {

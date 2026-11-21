@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { post } from "@/lib/api";
 import { useSession } from "@/components/session";
+import { DEFAULT_NEXT, safeNext } from "@/lib/safe-next";
 import { Alert, Button, Card, Field } from "@/components/ui";
 
 const PASSWORD_MIN = 8;
@@ -21,7 +22,9 @@ export function AuthForm({ mode }) {
   const [formError, setFormError] = useState(null);
   const [busy, setBusy] = useState(false);
   const register = mode === "register";
-  const next = safeNext(params.get("next"));
+  // Server render has no window; the origin only checks that resolving stays on site.
+  const origin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+  const next = safeNext(params.get("next"), origin);
 
   async function submit(event) {
     event.preventDefault();
@@ -74,15 +77,10 @@ export function AuthForm({ mode }) {
       </Card>
       <p className="mt-4 text-center text-sm text-muted">
         {register ? "Already have an account? " : "New here? "}
-        <Link className="font-medium text-accent underline-offset-2 hover:underline" href={`${register ? "/login" : "/register"}${next !== "/kits" ? `?next=${encodeURIComponent(next)}` : ""}`}>
+        <Link className="font-medium text-accent underline-offset-2 hover:underline" href={`${register ? "/login" : "/register"}${next !== DEFAULT_NEXT ? `?next=${encodeURIComponent(next)}` : ""}`}>
           {register ? "Sign in" : "Create an account"}
         </Link>
       </p>
     </div>
   );
-}
-
-// Only same-site paths, so ?next= cannot send the user to another site.
-function safeNext(value) {
-  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/kits";
 }

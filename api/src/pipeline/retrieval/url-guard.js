@@ -5,7 +5,7 @@
 //   server cannot be pointed at its own network.
 
 import { lookup as dnsLookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { BlockList, isIP } from "node:net";
 
 export class UrlRejectedError extends Error {
   constructor(message) {
@@ -49,33 +49,42 @@ export async function assertUrlAllowed(url, { allowPrivate, lookup = dnsLookup }
   if (blocked) throw new UrlRejectedError(`${host} points to a private or local address (${blocked}).`);
 }
 
-export function isPrivateAddress(address) {
-  if (isIP(address) === 4) return isPrivateV4(address);
-  if (isIP(address) === 6) {
-    const lower = address.toLowerCase();
-    const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(lower);
-    if (mapped) return isPrivateV4(mapped[1]);
-    return (
-      lower === "::" ||
-      lower === "::1" ||
-      /^f[cd]/.test(lower) || // fc00::/7 unique local
-      /^fe[89ab]/.test(lower) || // fe80::/10 link-local
-      /^ff/.test(lower) // multicast
-    );
-  }
-  return true; // not an IP at all: refuse rather than guess
+// Ranges, not strings (review S1): the URL parser rewrites IPv6 literals (e.g.
+// [::ffff:127.0.0.1] becomes [::ffff:7f00:1]), so any text pattern can be dodged by
+// another notation. net.BlockList compares the parsed address.
+const PRIVATE_V4 = new BlockList();
+for (const [network, prefix] of [
+  ["0.0.0.0", 8], // "this network"
+  ["10.0.0.0", 8],
+  ["100.64.0.0", 10], // carrier-grade NAT
+  ["127.0.0.0", 8], // loopback
+  ["169.254.0.0", 16], // link-local, incl. cloud metadata 169.254.169.254
+  ["172.16.0.0", 12],
+  ["192.0.0.0", 24], // IETF protocol assignments
+  ["192.0.2.0", 24], // documentation
+  ["192.168.0.0", 16],
+  ["198.18.0.0", 15], // benchmarking
+  ["198.51.100.0", 24], // documentation
+  ["203.0.113.0", 24], // documentation
+  ["224.0.0.0", 3], // multicast and reserved, up to 255.255.255.255
+]) {
+  PRIVATE_V4.addSubnet(network, prefix, "ipv4");
 }
 
-function isPrivateV4(address) {
-  const [a, b] = address.split(".").map(Number);
-  return (
-    a === 0 || // "this network"
-    a === 10 ||
-    a === 127 || // loopback
-    (a === 100 && b >= 64 && b <= 127) || // carrier-grade NAT
-    (a === 169 && b === 254) || // link-local, incl. cloud metadata 169.254.169.254
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168) ||
-    a >= 224 // multicast and reserved
-  );
+// IPv6: only ordinary public internet addresses (2000::/3) are fetchable. That leaves
+// out loopback, unique local, link-local, multicast, and every way of embedding IPv4
+// (::ffff:0:0/96 mapped, ::/96 compatible, 64:ff9b::/96 NAT64). Inside 2000::/3, the
+// ranges that wrap IPv4 or are reserved are refused too.
+const GLOBAL_V6 = new BlockList();
+GLOBAL_V6.addSubnet("2000::", 3, "ipv6");
+const RESERVED_V6 = new BlockList();
+RESERVED_V6.addSubnet("2002::", 16, "ipv6"); // 6to4: wraps an IPv4 address
+RESERVED_V6.addSubnet("2001:db8::", 32, "ipv6"); // documentation
+RESERVED_V6.addSubnet("2001::", 32, "ipv6"); // Teredo: wraps an IPv4 address
+
+export function isPrivateAddress(address) {
+  const version = isIP(address);
+  if (version === 4) return PRIVATE_V4.check(address, "ipv4");
+  if (version === 6) return !GLOBAL_V6.check(address, "ipv6") || RESERVED_V6.check(address, "ipv6");
+  return true; // not an IP at all: refuse rather than guess
 }

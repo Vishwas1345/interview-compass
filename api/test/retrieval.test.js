@@ -56,6 +56,64 @@ test("a redirect to a private address is refused when private URLs are blocked",
   assert.match(result.reason, /private or local/);
 });
 
+// Review S1 (2026-11-20): the URL parser rewrites [::ffff:127.0.0.1] to the hex form
+// [::ffff:7f00:1], which the old string checks treated as public.
+test("IPv4-mapped and other non-global IPv6 forms are private, in any notation", () => {
+  for (const ip of [
+    "::ffff:7f00:1", // 127.0.0.1, as the URL parser writes it
+    "::ffff:a9fe:a9fe", // 169.254.169.254, cloud metadata
+    "::ffff:a00:5", // 10.0.0.5
+    "0:0:0:0:0:ffff:7f00:1",
+    "::ffff:127.0.0.1",
+    "::7f00:1", // IPv4-compatible (deprecated)
+    "64:ff9b::7f00:1", // NAT64
+    "2002:7f00:1::1", // 6to4 wrapping 127.0.0.1
+    "2001:db8::1", // documentation
+    "::",
+  ]) {
+    assert.equal(isPrivateAddress(ip), true, ip);
+  }
+  assert.equal(isPrivateAddress("2606:4700::1111"), false, "ordinary public IPv6 stays allowed");
+  assert.equal(isPrivateAddress("2a00:1450:4001::200e"), false);
+});
+
+test("reserved IPv4 ranges are private too", () => {
+  for (const ip of ["192.0.0.8", "198.18.0.1", "198.19.255.255", "192.0.2.1", "240.0.0.1"]) assert.equal(isPrivateAddress(ip), true, ip);
+});
+
+test("a company URL written as a mapped IPv6 literal is refused in production", async () => {
+  for (const raw of ["http://[::ffff:127.0.0.1]/", "http://[::ffff:169.254.169.254]/latest/meta-data/", "http://[0:0:0:0:0:ffff:7f00:1]:8080/"]) {
+    await assert.rejects(assertUrlAllowed(new URL(raw), { allowPrivate: false }), /private or local/, raw);
+  }
+});
+
+test("a redirect to a mapped IPv6 literal is refused", async () => {
+  const fetch = async (url) =>
+    String(url).startsWith("https://public.test")
+      ? new Response(null, { status: 302, headers: { location: "http://[::ffff:a9fe:a9fe]/latest/meta-data/" } })
+      : new Response("<p>metadata</p>", { headers: { "content-type": "text/html" } });
+  const fetcher = createFetcher({ fetch, lookup: async () => [{ address: "93.184.216.34" }], allowPrivate: false, minIntervalMs: 0, sleep: async () => {} });
+  const result = await fetcher.fetchResource("https://public.test/");
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /private or local/);
+});
+
+// Review C3/C4 (2026-11-20): one bad link or redirect failed the whole kit.
+test("a link with a malformed escape is scored on its raw path instead of throwing", () => {
+  assert.doesNotThrow(() => scoreLink({ url: "https://a.com/about%ZZ" }));
+  assert.equal(scoreLink({ url: "https://a.com/careers%ZZ", text: "Careers" }).kind, "hiring");
+});
+
+test("a malformed or non-web redirect is a skipped page, not a crash", async () => {
+  for (const location of ["http://[", "ftp://files.example/x", "javascript:alert(1)"]) {
+    const fetch = async () => new Response(null, { status: 302, headers: { location } });
+    const fetcher = createFetcher({ fetch, lookup: async () => [{ address: "93.184.216.34" }], allowPrivate: false, minIntervalMs: 0, sleep: async () => {} });
+    const result = await fetcher.fetchResource("https://public.test/");
+    assert.equal(result.ok, false, location);
+    assert.match(result.reason, /redirect/, location);
+  }
+});
+
 // --- fetching and cleaning ------------------------------------------------
 
 test("a 404 is reported, not thrown", async () => {

@@ -27,10 +27,20 @@ const NEGATIVE_WORDS = [
 ];
 const BINARY_EXTENSIONS = /\.(pdf|jpe?g|png|gif|svg|webp|zip|gz|mp4|mp3|css|js|json|xml|ico|woff2?)$/i;
 
+// A malformed escape ("/about%ZZ") would throw and fail the whole kit (review C3);
+// the raw path scores well enough.
+function safeDecode(path) {
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
+}
+
 // → { score, kind: "hiring" | "about" | null }. Path words weigh more than link text.
 export function scoreLink({ url, text = "" }) {
   const parsed = new URL(url);
-  const path = decodeURIComponent(parsed.pathname).toLowerCase().replace(/[_\s]+/g, "-");
+  const path = safeDecode(parsed.pathname).toLowerCase().replace(/[_\s]+/g, "-");
   const label = text.toLowerCase().replace(/\s+/g, "-");
   if (BINARY_EXTENSIONS.test(path)) return { score: 0, kind: null };
   if (NEGATIVE_WORDS.some((w) => path.includes(w) || label.includes(w.replace(/\//g, "")))) return { score: 0, kind: null };

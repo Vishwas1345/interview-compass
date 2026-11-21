@@ -33,7 +33,9 @@ export function findQuoteRanges(text, quotes) {
   for (const { id, quote } of quotes) {
     const needle = normalise(quote);
     if (!needle) continue;
-    const at = normalised.indexOf(needle);
+    // Whole words only, the same rule as extraction's check (review C8): searching
+    // " needle " in " text " means a match at index `at` there is `at` here.
+    const at = ` ${normalised} `.indexOf(` ${needle} `);
     if (at < 0) continue;
     ranges.push({ start: map[at], end: map[at + needle.length - 1] + 1, ids: [id] });
   }

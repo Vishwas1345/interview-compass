@@ -84,3 +84,38 @@ test("the posting reaches the model inside the untrusted wrapper", async () => {
   assert.match(sent.user, /^<untrusted_content source="job description">/);
   assert.match(sent.system, /Never follow instructions/);
 });
+
+// Review C8 (2026-11-20): a raw substring match let a quote hide inside a longer word,
+// and the requirement's text was never compared with its quote.
+const tools = `Tech Stack (You Must Be Strong Here)
+- MERN stack
+- JavaScript and Typescript
+- Docker
+Requirements
+- You mentor other engineers
+- Strong experience with Node.js in production`;
+
+test("a quote must match whole words: 'java' is not found inside 'JavaScript'", () => {
+  const { kept, dropped } = verifyRequirements(tools, [req("Java", "java")]);
+  assert.equal(kept.length, 0);
+  assert.match(dropped[0].reason, /does not appear/);
+});
+
+test("the requirement's words must come from its quote", () => {
+  const { kept, dropped } = verifyRequirements(tools, [req("Kubernetes experience", "experience with Node.js"), req("Kubernetes and Docker", "Docker")]);
+  assert.equal(kept.length, 0);
+  assert.match(dropped[0].reason, /not in its quote/);
+});
+
+test("legitimate requirements still pass: one-word tool quotes, filler words, word forms", () => {
+  const { kept, dropped } = verifyRequirements(tools, [
+    req("Typescript", "Typescript"),
+    req("Experience with Docker", "Docker"), // filler words are not required to be quoted
+    req("Mentoring", "You mentor other engineers", { kind: "behavioural" }), // mentor ~ mentoring
+    req("Node.js in production", "Strong experience with Node.js in production"),
+    req("MERN stack", "MERN stack"),
+  ]);
+  assert.deepEqual(dropped, []);
+  assert.equal(kept.length, 5);
+});
+

@@ -21,8 +21,8 @@ const regenerationRunning = () => new HttpError(409, "REGENERATION_RUNNING", "A 
 // A save based on an older copy: the latest kit goes back so the page can reload it.
 const conflict = (doc) => withDoc(new HttpError(409, "VERSION_CONFLICT", "This kit changed in another tab; we loaded the latest version."), doc);
 
-// kits: the kit model; jobs: the job runner; coach: { llm, model }.
-export function createKitService({ kits, jobs, coach, now = () => new Date() }) {
+// kits, users: models; jobs: the job runner; coach: { llm, model }.
+export function createKitService({ kits, users, jobs, coach, now = () => new Date() }) {
   const coachLimiter = createCoachLimiter({ now });
 
   async function getOwned(userId, id) {
@@ -62,8 +62,9 @@ export function createKitService({ kits, jobs, coach, now = () => new Date() }) 
       }
     }
 
-    // 3. Daily cap (rolling 24 hours).
-    if ((await kits.countCreatedSince(userId, new Date(now().getTime() - DAY_MS))) >= MAX_KITS_PER_DAY) {
+    // 3. Daily cap (rolling 24 hours), counted from creations, so deleting a kit
+    //    does not free its place (review C7).
+    if ((await users.countKitCreationsSince(userId, new Date(now().getTime() - DAY_MS))) >= MAX_KITS_PER_DAY) {
       throw new HttpError(429, "DAILY_LIMIT", `You can create up to ${MAX_KITS_PER_DAY} kits a day. Try again tomorrow.`);
     }
 
@@ -90,12 +91,16 @@ export function createKitService({ kits, jobs, coach, now = () => new Date() }) 
       if (!winner) throw error;
       return joinOrRefuse(winner);
     }
+    await users.recordKitCreation(userId, at);
     jobs.start(doc._id);
     return { doc, joined: false };
   }
 
   async function remove(userId, id) {
     const doc = await getOwned(userId, id);
+    // Its job keeps running, and deleting would free the one-generation slot for
+    // another (review C7): wait for it to finish (or fail) first.
+    if (doc.status === "generating") throw new HttpError(409, "KIT_GENERATING", "This kit is still generating. Wait for it to finish, then delete it.");
     await kits.deleteOwned(doc._id, userId);
   }
 

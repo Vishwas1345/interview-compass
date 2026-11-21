@@ -50,3 +50,9 @@ test("splitByRanges keeps every character, in order", () => {
   assert.equal(pieces.map((p) => p.text).join(""), posting);
   assert.deepEqual(pieces.at(-1), { text: "Familiarity with Rust", ids: ["r3"] });
 });
+
+test("highlighting matches whole words, like extraction's check", () => {
+  assert.deepEqual(findQuoteRanges("We use JavaScript daily.", [{ id: "x", quote: "java" }]), []);
+  assert.equal(findQuoteRanges("We use Java daily.", [{ id: "x", quote: "java" }]).length, 1);
+});
+

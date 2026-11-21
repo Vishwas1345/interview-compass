@@ -197,3 +197,16 @@ test("file type comes from the bytes; filenames are cleaned", () => {
   assert.equal(safeFilename("%E0%A4"), "resume.pdf", "malformed encoding");
   assert.equal(safeFilename("notes.txt"), "notes.txt.pdf");
 });
+
+// Review C9 (2026-11-20): encodeURIComponent leaves ' ( ) * as they are, but RFC 5987
+// (the filename* download header) needs them encoded.
+test("a résumé name with apostrophes or brackets gives a valid download header", async () => {
+  const b = await signedIn();
+  await upload(b, "/api/profile/resume", PDF, { filename: "O'Brien (CV)*.pdf" });
+  const got = await download(b, "/api/profile/resume");
+  assert.equal(got.status, 200);
+  const disposition = got.headers.get("content-disposition");
+  assert.match(disposition, /filename\*=UTF-8''O%27Brien%20%28CV%29%2A\.pdf$/);
+  assert.doesNotMatch(disposition.split("filename*=UTF-8''")[1], /['()*]/);
+});
+

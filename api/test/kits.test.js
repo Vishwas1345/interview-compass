@@ -109,20 +109,37 @@ test("the same posting again asks first; force creates a new kit", async () => {
   await jobs.wait(forced.body.kit.id);
 });
 
-test(`the ${MAX_KITS_PER_DAY + 1}th kit in 24 hours is refused, and allowed again a day later`, async () => {
+test(`the ${MAX_KITS_PER_DAY + 1}th kit in 24 hours is refused even if earlier ones were deleted, and allowed a day later`, async () => {
+  pipelineDeps.llm = fakeLlm();
   const b = await signedIn();
-  const user = await testDb.db.collection("users").findOne({ email: `kits${counter}@example.com` });
-  await testDb.db.collection("kits").insertMany(
-    Array.from({ length: MAX_KITS_PER_DAY }, (_, i) => ({ userId: user._id, status: "ready", input: { jd: `x${i}`, company_url: "a.com", days: 1 }, dedupeKey: `k${i}`, createdAt: clock.now() })),
-  );
+  for (let i = 0; i < MAX_KITS_PER_DAY; i += 1) {
+    const created = await b.post("/api/kits", posting(600 + i));
+    assert.equal(created.status, 202, `kit ${i + 1}`);
+    await jobs.wait(created.body.kit.id);
+    // Review C7: deleting used to give the place in the daily cap back.
+    assert.equal((await b.del(`/api/kits/${created.body.kit.id}`)).status, 204);
+  }
   const refused = await b.post("/api/kits", posting(6));
   assert.equal(refused.status, 429);
   assert.equal(refused.body.error.code, "DAILY_LIMIT");
   clock.advance(24 * 60 * 60 * 1000 + 1);
-  pipelineDeps.llm = fakeLlm();
   const allowed = await b.post("/api/kits", posting(6));
   assert.equal(allowed.status, 202);
   await jobs.wait(allowed.body.kit.id);
+});
+
+test("a kit that is still generating cannot be deleted (it would free the one-at-a-time slot)", async () => {
+  const { llm, release } = heldLlm();
+  pipelineDeps.llm = llm;
+  const b = await signedIn();
+  const created = await b.post("/api/kits", posting(7001));
+  const refused = await b.del(`/api/kits/${created.body.kit.id}`);
+  assert.equal(refused.status, 409);
+  assert.equal(refused.body.error.code, "KIT_GENERATING");
+  assert.equal((await b.post("/api/kits", posting(7002))).body.error.code, "GENERATION_RUNNING", "the slot is still taken");
+  release();
+  await jobs.wait(created.body.kit.id);
+  assert.equal((await b.del(`/api/kits/${created.body.kit.id}`)).status, 204, "deletable once finished");
 });
 
 test("users see only their own kits: another user's kit is 'not found'", async () => {

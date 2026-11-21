@@ -40,7 +40,7 @@ export function createApp({ db, jobs, coach, production = false, now = () => new
       auth: createAuthService({ users: models.users, now }),
       account: createAccountService({ users: models.users, kits: models.kits, sessions }),
       profile: createProfileService({ users: models.users, now }),
-      kits: createKitService({ kits: models.kits, jobs, coach, now }),
+      kits: createKitService({ kits: models.kits, users: models.users, jobs, coach, now }),
     };
     const signedIn = requireUser({ sessions, users: models.users, production });
 

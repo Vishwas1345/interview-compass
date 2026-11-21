@@ -32,6 +32,14 @@ export function createUserModel(db) {
     },
     removeFile: (id, field) => users.updateOne({ _id: id }, { $unset: { [field]: "" } }),
 
+    // The daily kit cap counts creations, not kits that still exist (review C7):
+    // deleting a kit must not give its place back. Only the latest 20 are kept.
+    recordKitCreation: (id, at) => users.updateOne({ _id: id }, { $push: { kitCreations: { $each: [at], $slice: -20 } } }),
+    async countKitCreationsSince(id, since) {
+      const user = await users.findOne({ _id: id }, { projection: { kitCreations: 1 } });
+      return (user?.kitCreations ?? []).filter((at) => at > since).length;
+    },
+
     delete: (id) => users.deleteOne({ _id: id }),
   };
 }

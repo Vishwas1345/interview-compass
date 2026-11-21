@@ -134,7 +134,7 @@ Untrusted text (the posting, every page, every search result, user-written text 
 
 ## Retrieval and sources
 
-- **Fetching** (D6): `fetch` + cheerio. URLs are normalised (an address typed without a scheme is tried over https, then http); private, loopback and link-local addresses are refused in production and re-checked on every redirect; HTML only, 2 MB cap, 10 s timeout, robots.txt respected, a bot user agent that names the app.
+- **Fetching** (D6): `fetch` + cheerio. URLs are normalised (an address typed without a scheme is tried over https, then http); private, loopback, link-local and reserved addresses are refused in production (checked by range, so no IPv6 notation slips through) and re-checked on every redirect; HTML only, 2 MB cap, 10 s timeout, robots.txt respected, a bot user agent that names the app.
 - **Which pages:** the homepage, then links scored by hiring words (careers, jobs, hiring, interview, handbook, join) and about words (about, company, team, engineering, culture), whole words only, with blog and news pages damped. Sitemaps add candidates the homepage does not link to.
 - **Public discussion** (D7): Tavily (if `TAVILY_API_KEY` is set) and the Hacker News Algolia API. Searches are skipped for companies on private addresses, since a public search would only find unrelated companies.
 - **Every source is recorded** in the kit: `company_brief.sources`, and `research.pages_tried` (used and skipped, each with its reason), `research.discussion_sources`, `research.interview_stages`, `research.notes`. The app's **Research** and **Job description** sections show them.
@@ -210,7 +210,7 @@ Tracked in [`docs/GAPS.md`](docs/GAPS.md):
 ## Testing
 
 ```bash
-npm test        # 229 tests: node:test, real throwaway MongoDB (mongodb-memory-server), fake model, local fixture sites
+npm test        # 248 tests: node:test, real throwaway MongoDB (mongodb-memory-server), fake model, local fixture sites
 npm run lint    # web
 ```
 
@@ -234,6 +234,15 @@ Spec-driven, one phase at a time, with the agent skills in [`.claude/skills/`](.
 | [`implementation-plan`](.claude/skills/implementation-plan/SKILL.md) | Endpoints, data, files and phases | phase plans (kept local, not committed) |
 | [`writing-for-agents`](.claude/skills/writing-for-agents/SKILL.md) | Documents agents read | [`AGENTS.md`](AGENTS.md), `CLAUDE.md` |
 
+Before deploying, the whole codebase was reviewed with Claude Code's built-in skills:
+
+| Skill | Found | Outcome |
+|---|---|---|
+| `/security-review` | 2 issues, each confirmed by a separate false-positive check: an IPv6 form that slipped past the private-address guard (high), and an open redirect after sign-in (medium) | Fixed with regression tests |
+| `/code-review` | 9 issues: the same two, plus crash paths in background jobs and the crawler, a bypass of the untrusted-content wrapper, a way round the generation limits, a too-loose quote check, and a header encoding nit | Fixed with regression tests |
+
+Every finding, how it was confirmed, the fix and its test: [`docs/REVIEWS.md`](docs/REVIEWS.md).
+
 The documents they produced:
 
 | Doc | What it holds |
@@ -245,3 +254,4 @@ The documents they produced:
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | 18 decisions, each with the alternatives and the reason |
 | [`docs/GAPS.md`](docs/GAPS.md) | Open questions as they were closed, and known limitations |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layout, pipeline, data model, API, frontend, security |
+| [`docs/REVIEWS.md`](docs/REVIEWS.md) | The code and security reviews: findings, fixes and their tests |

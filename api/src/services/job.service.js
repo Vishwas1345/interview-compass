@@ -25,10 +25,17 @@ export function createJobRunner({ db, kits = createKitModel(db), pipelineDeps, n
   function start(kitId) {
     const key = String(kitId);
     if (running.has(key)) return running.get(key);
-    const job = run(kitId).finally(() => running.delete(key));
+    const job = run(kitId)
+      .catch(logFailure(kitId, "generation"))
+      .finally(() => running.delete(key));
     running.set(key, job);
     return job;
   }
+
+  // Jobs run without being awaited, so anything they throw (even while recording a
+  // failure) must stop here: an unhandled rejection would end the whole process
+  // (review C2). A kit left "generating" is marked interrupted on the next start.
+  const logFailure = (kitId, what) => (error) => log(`${what} job for kit ${kitId} failed: ${error?.stack ?? error}`);
 
   async function run(kitId) {
     const doc = await kits.findById(kitId);
@@ -82,7 +89,9 @@ export function createJobRunner({ db, kits = createKitModel(db), pipelineDeps, n
   function regenerate(kitId, request) {
     const key = `regen:${kitId}`;
     if (running.has(key)) return running.get(key);
-    const job = runRegeneration(kitId, request).finally(() => running.delete(key));
+    const job = runRegeneration(kitId, request)
+      .catch(logFailure(kitId, "regeneration"))
+      .finally(() => running.delete(key));
     running.set(key, job);
     return job;
   }

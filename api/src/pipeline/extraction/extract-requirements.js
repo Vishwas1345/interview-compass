@@ -85,7 +85,9 @@ export async function extractRequirements({ jd, llm, model, log = () => {} }) {
 // Pure: keeps requirements whose quote is in the posting and whose numbers come from
 // that quote; drops duplicates. Comparison ignores case, punctuation and spacing.
 export function verifyRequirements(posting, requirements) {
-  const haystack = normalise(posting);
+  // Spaces around both sides: a quote must match whole words, so "java" is not found
+  // inside "javascript" (review C8).
+  const haystack = ` ${normalise(posting)} `;
   const kept = [];
   const dropped = [];
   const seen = new Set();
@@ -96,7 +98,8 @@ export function verifyRequirements(posting, requirements) {
     let reason = null;
     if (!text) reason = "empty text";
     else if (quote.split(" ").filter(Boolean).length < 1) reason = "no source quote";
-    else if (!haystack.includes(quote)) reason = "its quote does not appear in the posting";
+    else if (!haystack.includes(` ${quote} `)) reason = "its quote does not appear in the posting";
+    else if (!groundedIn(text, quote)) reason = "its wording is not in its quote";
     else if (!numbersIn(r.text).every((n) => numbersIn(r.quote).includes(n))) reason = "it contains a number its quote does not";
     else if (seen.has(text)) reason = "duplicate";
     if (reason) {
@@ -107,6 +110,34 @@ export function verifyRequirements(posting, requirements) {
     }
   }
   return { kept, dropped };
+}
+
+// Words that carry no requirement of their own: grammar, and the filler the model
+// adds around a quoted skill ("Experience with Docker" quoting "Docker").
+const NOT_CONTENT = new Set(
+  ("a an and or the of in on at to for with by from as is are be your our you we it its this that " +
+    "experience experienced strong solid deep good working hands proven knowledge familiarity familiar " +
+    "proficiency proficient understanding skills skill ability able background").split(" "),
+);
+
+// Two words match when equal, or when they share a stem of at least five letters
+// ("mentor" ~ "mentoring", "postgres" ~ "postgresql"; not "java" ~ "javascript").
+function sameWord(a, b) {
+  if (a === b) return true;
+  let common = 0;
+  while (common < a.length && common < b.length && a[common] === b[common]) common += 1;
+  return common >= 5;
+}
+
+// The requirement's own wording must come from its quote (review C8): at least two
+// thirds of its content words appear there, so "Kubernetes experience" cannot ride on
+// a quote that only says "experience".
+function groundedIn(text, quote) {
+  const words = text.split(" ").filter((w) => w.length > 1 && !NOT_CONTENT.has(w) && !/^\d+$/.test(w));
+  if (words.length === 0) return true; // only filler or numbers: numbers are checked separately
+  const quoted = quote.split(" ");
+  const found = words.filter((w) => quoted.some((q) => sameWord(w, q))).length;
+  return found / words.length >= 2 / 3;
 }
 
 export function normalise(value) {
