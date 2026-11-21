@@ -34,13 +34,19 @@ export async function startTestApp(options) {
   return { server, origin: `http://localhost:${server.address().port}`, close: () => server.close() };
 }
 
-// Each client has its own cookie jar, like a separate browser.
+// Each client has its own cookie jar and its own client IP (X-Forwarded-For, which
+// the app trusts for one proxy hop), like a separate person's browser. Per-request
+// headers can still override the IP (the throttling tests do).
+let browsers = 0;
 export function browser(origin) {
   const jar = new Map();
+  const n = ++browsers;
+  const clientIp = `10.200.${(n >> 8) & 255}.${n & 255}`;
   async function request(method, path, body, { headers = {} } = {}) {
     const response = await fetch(origin + path, {
       method,
       headers: {
+        "X-Forwarded-For": clientIp,
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...(jar.size ? { Cookie: [...jar].map(([k, v]) => `${k}=${v}`).join("; ") } : {}),
         ...headers,

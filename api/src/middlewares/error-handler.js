@@ -17,24 +17,23 @@ const PIPELINE_STATUS = {
 export function errorHandler(log = console.error) {
   // eslint-disable-next-line no-unused-vars
   return (error, req, res, next) => {
+    // Every error body carries the request id (D19), so a report can be traced.
+    const send = (status, body) => res.status(status).json({ error: { ...body, requestId: req.id } });
     if (error instanceof HttpError) {
-      return res.status(error.status).json({ error: { code: error.code, message: error.message, ...error.extra } });
+      if (error.extra?.retryAfterSeconds) res.setHeader("Retry-After", String(error.extra.retryAfterSeconds));
+      return send(error.status, { code: error.code, message: error.message, ...error.extra });
     }
     if (error instanceof z.ZodError) {
       const first = error.issues[0];
       const where = first?.path.length ? `${first.path.join(".")}: ` : "";
-      return res.status(400).json({ error: { code: "VALIDATION", message: `${where}${first?.message ?? "invalid request"}` } });
+      return send(400, { code: "VALIDATION", message: `${where}${first?.message ?? "invalid request"}` });
     }
     if (error instanceof PipelineError) {
-      return res.status(PIPELINE_STATUS[error.code] ?? 500).json({ error: { code: error.code, message: error.message } });
+      return send(PIPELINE_STATUS[error.code] ?? 500, { code: error.code, message: error.message });
     }
-    if (error?.type === "entity.parse.failed") {
-      return res.status(400).json({ error: { code: "VALIDATION", message: "The request body is not valid JSON." } });
-    }
-    if (error?.type === "entity.too.large") {
-      return res.status(413).json({ error: { code: "TOO_LARGE", message: "The request body is too large." } });
-    }
-    log(`${req.method} ${req.path} failed: ${error?.stack ?? error}`);
-    return res.status(500).json({ error: { code: "INTERNAL_ERROR", message: "Something went wrong on our side." } });
+    if (error?.type === "entity.parse.failed") return send(400, { code: "VALIDATION", message: "The request body is not valid JSON." });
+    if (error?.type === "entity.too.large") return send(413, { code: "TOO_LARGE", message: "The request body is too large." });
+    log(`${req.method} ${req.path} failed id=${req.id}: ${error?.stack ?? error}`);
+    return send(500, { code: "INTERNAL_ERROR", message: `Something went wrong on our side. Quote ${req.id} if you report it.` });
   };
 }

@@ -4,7 +4,8 @@ import { publicUser } from "../views/user.view.js";
 import { SESSION_COOKIE } from "../services/session.service.js";
 import { readCookie, sessionCookieOptions } from "../utils/cookies.js";
 
-export function createAuthController({ auth, sessions, production }) {
+// throttle: services/throttle.service.js (sign-in and sign-up limits, D19).
+export function createAuthController({ auth, sessions, throttle, production }) {
   async function startSession(res, user) {
     const { token, maxAgeMs } = await sessions.create(user._id);
     res.cookie(SESSION_COOKIE, token, sessionCookieOptions({ production, maxAgeMs }));
@@ -12,12 +13,23 @@ export function createAuthController({ auth, sessions, production }) {
 
   return {
     async register(req, res) {
-      const user = await auth.register(registerBody.parse(req.body ?? {}));
+      const body = registerBody.parse(req.body ?? {});
+      throttle.checkSignUp(req.ip);
+      const user = await auth.register(body);
       await startSession(res, user);
       res.status(201).json({ user: publicUser(user) });
     },
     async login(req, res) {
-      const user = await auth.login(loginBody.parse(req.body ?? {}));
+      const body = loginBody.parse(req.body ?? {});
+      throttle.checkLogin(req.ip, body.email);
+      let user;
+      try {
+        user = await auth.login(body);
+      } catch (error) {
+        if (error.code === "INVALID_CREDENTIALS") throttle.loginFailed(req.ip, body.email);
+        throw error;
+      }
+      throttle.loginSucceeded(body.email);
       await startSession(res, user);
       res.json({ user: publicUser(user) });
     },

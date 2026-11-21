@@ -53,7 +53,8 @@ test("wrong password and unknown email get the same answer", async () => {
   const wrong = await browser(app.origin).post("/api/auth/login", { email, password: "wrong password" });
   const unknown = await browser(app.origin).post("/api/auth/login", { email: newEmail(), password: PASSWORD });
   assert.equal(wrong.status, 401);
-  assert.deepEqual(wrong.body, unknown.body);
+  // Same code and message (each error also carries its own request id).
+  assert.deepEqual([wrong.body.error.code, wrong.body.error.message], [unknown.body.error.code, unknown.body.error.message]);
   assert.match(wrong.body.error.message, /^Email or password is incorrect/);
 });
 

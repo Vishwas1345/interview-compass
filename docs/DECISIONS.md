@@ -243,3 +243,21 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 **Considered:** per-feature modules (`modules/kits/{routes, controller, service, model, view}`); keeping the topic folders and tidying names.
 
 **Why:** the route files had grown to hold validation, queries, rules and response shaping together (`routes/kits.js` was 317 lines). Layers give each concern one home and make the rules checkable by search (no `collection(` outside `models/`; no `views/` import in `services/`). With four resources, layer folders read more plainly than feature modules; that trade flips at around fifteen. The pipeline is an engine shared by the API job runner and the CLI, not a web concern, so splitting it across layers would scatter it. Views in an API are the "V": making them explicit keeps every outgoing field in one reviewable place, which is also a security boundary (no password hashes, file bytes or checkpoints leave). The refactor changed no behaviour: the 229 tests passed unchanged apart from one import path.
+
+---
+
+## D19 — Production hardening: throttles, request ids, security headers, scrypt cost
+
+**Date:** 2026-11-21
+
+**Decision:**
+- **Sign-in throttling** (`services/throttle.service.js`): failed sign-ins are limited per email (10 in 15 minutes, from any IP) and per IP (50 in 15 minutes); sign-ups per IP (10 an hour). Only failures count, a success clears the email's count, and a refusal is `429 TOO_MANY_ATTEMPTS` with `Retry-After`. In memory, sliding windows.
+- **Request ids** (`middlewares/request-id.middleware.js`): a safe incoming `X-Request-Id` is kept, otherwise a UUID; returned as a header, written on a one-line access log (method, path, status, time, id, a user id prefix; never bodies, cookies or query strings) and in every error body.
+- **Security headers**: on the API, `nosniff`, `X-Frame-Options: DENY`, `no-referrer`, `Cache-Control: no-store`, `CSP: default-src 'none'; frame-ancestors 'none'`, CORP same-site, and HSTS in production (file downloads keep their stricter headers). On the web app (`next.config.mjs`): framing denied, `nosniff`, a referrer and a permissions policy, HSTS, and a partial CSP (`frame-ancestors`, `base-uri`, `object-src`, `form-action`); no `X-Powered-By`.
+- **scrypt cost** N = 2^15, r = 8, p = 1 (was Node's default 2^14). The hash records its parameters (`scrypt$N=32768,r=8,p=1$salt$hash`); the old format still verifies and is upgraded at the next sign-in.
+- **Fail fast**: a production server refuses to start without `MONGODB_URI` or `LLM_API_KEY`, with `ALLOW_PRIVATE_URLS` on, or with a nonsensical `TRUST_PROXY_HOPS`.
+- **`TRUST_PROXY_HOPS`** sets how many proxies front the API, so `req.ip` is the real client (2 behind Vercel's rewrite and Render's proxy).
+
+**Considered:** account lockout; a global per-IP request limit; `helmet`; a full CSP with nonces; OWASP's N = 2^17; bcrypt.
+
+**Why:** the public deployment makes the sign-in form the first target, and the app spec ruled out lockout (no reset flow to recover a locked account), so a temporary throttle keyed by email is the protection that does not lock real users out. A global per-IP limit would lump users together behind shared proxies and buys little over the per-user limits already in place (one generation at a time, 10 kits a day, 30 coach calls an hour). The headers are a handful of lines, so a dependency was not needed. A script-src CSP needs per-request nonces in Next.js (inline scripts), recorded as L9. N = 2^17 needs 128 MB per hash, which would exhaust a 512 MB free instance under a few concurrent sign-ins; 2^15 is 32 MB, and the recorded parameters let it rise later without breaking existing accounts.

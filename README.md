@@ -22,6 +22,7 @@ Paste a posting, give the company's website and the days until the interview. In
 - [Practice and the creative feature](#practice-and-the-creative-feature)
 - [Key decisions](#key-decisions)
 - [Trade-offs and known limitations](#trade-offs-and-known-limitations)
+- [Security](#security)
 - [Testing](#testing)
 - [How this was built](#how-this-was-built)
 
@@ -207,10 +208,23 @@ Tracked in [`docs/GAPS.md`](docs/GAPS.md):
 - **The résumé is stored, never read:** the brief puts CV parsing out of scope.
 - **One API instance:** the background jobs, rate limiter and coach limit live in one process; more instances would need a shared queue and limiter.
 
+## Security
+
+Reviewed with `/security-review` and `/code-review` (see [How this was built](#how-this-was-built)), then hardened for production (D19):
+
+- **Accounts:** scrypt (N = 2^15) with per-user salts, upgraded at sign-in; server-side sessions in an httpOnly, SameSite=Lax, Secure cookie, stored only as a SHA-256; failed sign-ins throttled per email and per IP; one message for a wrong email or password.
+- **Requests:** JSON-only mutations and a custom header on uploads (CSRF); zod on every body; ownership in every kit query; 200 KB bodies; file types checked by their bytes and served so they cannot run.
+- **Fetching:** private, loopback, link-local and reserved addresses refused by range in production, re-checked on every redirect; robots.txt respected.
+- **Model input:** posting, pages and user text wrapped as untrusted data; requirements kept only if quoted from the posting.
+- **Responses:** security headers on the API and the web app, `no-store` on API data, an `X-Request-Id` on every response and error.
+- **Operations:** a production server refuses to start misconfigured; `npm audit --omit=dev` reports 0 vulnerabilities.
+
+Known limits: the web CSP has no script policy (L9); throttles live in one process (L10).
+
 ## Testing
 
 ```bash
-npm test        # 248 tests: node:test, real throwaway MongoDB (mongodb-memory-server), fake model, local fixture sites
+npm test        # 258 tests: node:test, real throwaway MongoDB (mongodb-memory-server), fake model, local fixture sites
 npm run lint    # web
 ```
 

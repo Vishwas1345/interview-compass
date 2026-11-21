@@ -92,7 +92,7 @@ Express 5, everything under `/api` (the web app proxies `/api/*`, D10). Errors a
 | PUT / GET / DELETE | `/api/profile/photo`, `/api/profile/resume` | raw-body uploads behind `X-Requested-With` (D16); downloads with the detected type and `nosniff` |
 | POST | `/api/account/email`, `/api/account/password`, `/api/account/delete` | need the current password; a password change signs out other devices |
 
-Middleware order: JSON body (200 KB) → JSON-only mutations → `requireUser` on `/api/kits`, `/api/profile`, `/api/account` → routes → error handler.
+Middleware order: request id → access log → security headers → JSON body (200 KB) → JSON-only mutations → `requireUser` on `/api/kits`, `/api/profile`, `/api/account` → routes → error handler.
 
 **Layer rules (D18).** Routes only wire URLs to controllers. Controllers validate with `validators/`, call one service, and answer with a `views/` shape; they never touch MongoDB. Services hold the rules and call models; they never import views, so an error that concerns a kit carries the raw document as `error.doc` and the controller turns it into a view. Models are the only code that queries MongoDB and declare their own indexes; they hold no business rules. The pipeline is a separate engine used by `services/job.service.js` and the CLI.
 
@@ -126,6 +126,10 @@ Next.js 16 App Router (`web/src/app`), JavaScript, Tailwind 4, no component or s
 - **Accounts (D10).** scrypt passwords; session tokens stored only as SHA-256; `httpOnly`, `SameSite=Lax`, `Secure` cookies; JSON-only mutations against CSRF; one message for wrong email or password.
 - **Authorisation.** Every kit query includes the user's id; another user's kit is "not found".
 - **Uploads (D16).** Raw bodies behind a custom-header guard; type from the file's bytes; 1 MB photo, 4 MB résumé; served with the detected type and `nosniff`, the résumé as a sandboxed attachment; only the owner's own files are reachable. The résumé is never read.
+- **Sign-in (D19).** Failed sign-ins throttled per email (10 / 15 min) and per IP (50 / 15 min), sign-ups per IP (10 / hour), `429` with `Retry-After`; scrypt N = 2^15 with parameters stored in the hash and upgraded at sign-in.
+- **Headers (D19).** API: `nosniff`, frame denial, `no-referrer`, `no-store`, a deny-all CSP, HSTS in production. Web: frame denial, `nosniff`, referrer and permissions policies, HSTS, a partial CSP (L9).
+- **Traceability (D19).** Every request has an `X-Request-Id`, on the access log and in every error body.
+- **Fail fast (D19).** Production refuses to start without its database or model key, or with the private-address guard switched off.
 - **Abuse limits.** One generating kit per user (database index), 10 new kits per day, 30 coach calls per hour, 200 KB bodies, length caps on every text field.
 - **Secrets.** Keys and the database URI come from environment variables; logs never include passwords, tokens, cookies, request bodies or the posting.
 
