@@ -42,6 +42,7 @@ function ProfileInner() {
   };
 
   if (error) return <Alert>{error}</Alert>;
+  const google = profile?.user?.signInMethod === "google";
   if (!profile) {
     return (
       <div className="space-y-4" aria-label="Loading profile">
@@ -57,13 +58,49 @@ function ProfileInner() {
         <h1 className="font-display text-[34px] leading-tight text-ink">Profile</h1>
         <p className="mt-0.5 text-sm text-muted">Your details stay private to your account. They are never sent to the AI.</p>
       </div>
+      <LinkedNotice />
       <PhotoSection profile={profile} onSaved={saved} />
       <DetailsSection profile={profile} onSaved={saved} />
       <ResumeSection profile={profile} onSaved={saved} />
-      <EmailSection profile={profile} onSaved={(user) => (setProfile((p) => ({ ...p, email: user.email })), session.updateUser(user))} />
-      <PasswordSection />
-      <DeleteSection />
+      {google ? (
+        <GoogleAccountSection email={profile.email} />
+      ) : (
+        <>
+          <EmailSection profile={profile} onSaved={(user) => (setProfile((p) => ({ ...p, email: user.email })), session.updateUser(user))} />
+          <PasswordSection />
+        </>
+      )}
+      <DeleteSection google={google} email={profile.email} />
     </div>
+  );
+}
+
+// Shown once, right after a password account became a Google account (D22). It renders
+// only after the profile has loaded in the browser (never on the server), so it can read
+// the address when its state is created; the address is then cleaned so a reload does
+// not repeat it.
+function LinkedNotice() {
+  const router = useRouter();
+  const [show] = useState(() => new URLSearchParams(window.location.search).get("notice") === "google-linked");
+  useEffect(() => {
+    if (show) router.replace("/profile");
+  }, [show, router]);
+  if (!show) return null;
+  return (
+    <Alert tone="info" title="Your account now signs in with Google">
+      Your old password no longer works, and your other devices were signed out.
+    </Alert>
+  );
+}
+
+// Email and password belong to Google for these accounts (D22).
+function GoogleAccountSection({ email }) {
+  return (
+    <Section title="Sign-in" description="Your email and password are managed by Google.">
+      <p className="text-sm text-ink-soft">
+        You sign in with Google as <span className="font-medium text-ink">{email}</span>.
+      </p>
+    </Section>
   );
 }
 
@@ -414,7 +451,8 @@ function PasswordSection() {
   );
 }
 
-function DeleteSection() {
+// google: the account has no password, so typing its email confirms instead.
+function DeleteSection({ google, email }) {
   const router = useRouter();
   const session = useSession();
   const [open, setOpen] = useState(false);
@@ -424,10 +462,11 @@ function DeleteSection() {
 
   async function confirm(e) {
     e?.preventDefault();
-    if (!password) return setError("Enter your password to confirm.");
+    if (!password) return setError(google ? "Type your email to confirm." : "Enter your password to confirm.");
+    if (google && password.trim().toLowerCase() !== email) return setError("Type your account's email exactly to confirm.");
     setBusy(true);
     try {
-      await post("/account/delete", { password });
+      await post("/account/delete", google ? { confirmEmail: password } : { password });
       session.signedOutLocally();
       router.replace("/");
     } catch (err) {
@@ -458,7 +497,11 @@ function DeleteSection() {
       >
         <form onSubmit={confirm}>
           <p>Your account, kits, practice history and files are removed for good.</p>
-          <Field className="mt-3" label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => (setPassword(e.target.value), setError(null))} error={error} />
+          {google ? (
+            <Field className="mt-3" label={`Type ${email} to confirm`} type="email" autoComplete="off" value={password} onChange={(e) => (setPassword(e.target.value), setError(null))} error={error} />
+          ) : (
+            <Field className="mt-3" label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => (setPassword(e.target.value), setError(null))} error={error} />
+          )}
         </form>
       </Dialog>
     </Section>
