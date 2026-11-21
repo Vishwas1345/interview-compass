@@ -56,7 +56,14 @@ test("a failing, slow or garbled token endpoint is 'unavailable'", async () => {
   for (const [name, answer] of Object.entries(cases)) {
     await assert.rejects(client(fakeGoogle(answer).fetch).exchange("c", "v", "n1"), (e) => e.reason === "unavailable", name);
   }
-  const hanging = (_url, { signal }) => new Promise((_resolve, reject) => signal.addEventListener("abort", () => reject(signal.reason)));
+  // A request that never answers. AbortSignal.timeout's timer does not keep Node
+  // alive by itself (in production the server does), so the fake holds a normal
+  // timer while it waits, or Node may exit before the timeout fires (CI did).
+  const hanging = (_url, { signal }) =>
+    new Promise((_resolve, reject) => {
+      const keepAlive = setTimeout(() => {}, 10_000);
+      signal.addEventListener("abort", () => (clearTimeout(keepAlive), reject(signal.reason)));
+    });
   const slow = createGoogleClient({ ...TEST_GOOGLE, redirectUri: REDIRECT, fetch: hanging, timeoutMs: 20 });
   await assert.rejects(slow.exchange("c", "v", "n1"), (e) => e.reason === "unavailable" && /unreachable/.test(e.message));
 });
