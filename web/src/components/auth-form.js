@@ -118,6 +118,11 @@ export function AuthForm({ mode }) {
           {register ? "Sign in" : "Create an account"}
         </Link>
       </p>
+      <p className="mt-2 text-center text-xs text-faint">
+        <Link className="underline-offset-2 hover:underline" href="/privacy">
+          How we handle your data
+        </Link>
+      </p>
     </div>
   );
 }

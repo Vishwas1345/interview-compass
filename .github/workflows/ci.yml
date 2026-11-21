@@ -46,7 +46,7 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Test (258 tests, real throwaway MongoDB, fake model)
+      - name: Test (real throwaway MongoDB, fake model)
         run: npm test
 
       - name: Build the web app

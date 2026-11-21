@@ -59,6 +59,8 @@ npm run dev:web               # web app on http://localhost:3000 (proxies /api/*
 
 Open http://localhost:3000, create an account and a kit. Every variable is documented in [`.env.example`](.env.example).
 
+Google sign-in is optional: create an OAuth client (Web application) in the Google Cloud console with the redirect URI `http://localhost:3000/api/auth/google/callback`, then set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `APP_ORIGIN=http://localhost:3000`. Without them the button is hidden.
+
 To try the company research without the internet, serve the bundled fixture sites and use `http://localhost:8099/acme/` (has an about page and a published hiring process), `/quiet/` (no hiring page) or `/inject/` (prompt-injection attempts) as the company website:
 
 ```bash
@@ -196,6 +198,7 @@ Each decision, the alternatives and the reasoning are in [`docs/DECISIONS.md`](d
 | D16 | Profile files in MongoDB, uploads checked by their bytes and served so they cannot run |
 | D17 | An editorial visual system from one set of design tokens |
 | D18 | Layered MVC API; the pipeline stays one engine |
+| D22 | Google sign-in with our own OpenID Connect flow; Google's verified email wins |
 
 ## Trade-offs and known limitations
 
@@ -215,7 +218,7 @@ Tracked in [`docs/GAPS.md`](docs/GAPS.md):
 
 Reviewed with `/security-review` and `/code-review` (see [How this was built](#how-this-was-built)), then hardened for production (D19):
 
-- **Accounts:** scrypt (N = 2^15) with per-user salts, upgraded at sign-in; server-side sessions in an httpOnly, SameSite=Lax, Secure cookie, stored only as a SHA-256; failed sign-ins throttled per email and per IP; one message for a wrong email or password.
+- **Accounts:** Google sign-in with `state`, PKCE and `nonce`, only verified Google emails, and a same-email password account losing its password (account pre-hijacking, D22); scrypt (N = 2^15) with per-user salts, upgraded at sign-in; server-side sessions in an httpOnly, SameSite=Lax, Secure cookie, stored only as a SHA-256; failed sign-ins throttled per email and per IP; one message for a wrong email or password.
 - **Requests:** JSON-only mutations and a custom header on uploads (CSRF); zod on every body; ownership in every kit query; 200 KB bodies; file types checked by their bytes and served so they cannot run.
 - **Fetching:** private, loopback, link-local and reserved addresses refused by range in production, re-checked on every redirect; robots.txt respected.
 - **Model input:** posting, pages and user text wrapped as untrusted data; requirements kept only if quoted from the posting.
@@ -226,12 +229,12 @@ Known limits: the web CSP has no script policy (L9); throttles live in one proce
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/ci.yml`, D20): every push and pull request runs install, lint, the 258 tests, a production build and a dependency audit. Pushes to `main` that pass are then deployed, both Render services (API and web) through their deploy hooks, so only tested commits reach production. Dependabot proposes weekly updates, which go through the same checks. Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#deployment).
+GitHub Actions (`.github/workflows/ci.yml`, D20): every push and pull request runs install, lint, the 282 tests, a production build and a dependency audit. Pushes to `main` that pass are then deployed, both Render services (API and web) through their deploy hooks, so only tested commits reach production. Dependabot proposes weekly updates, which go through the same checks. Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#deployment).
 
 ## Testing
 
 ```bash
-npm test        # 258 tests: node:test, real throwaway MongoDB (mongodb-memory-server), fake model, local fixture sites
+npm test        # 282 tests: node:test, real throwaway MongoDB (mongodb-memory-server), fake model, local fixture sites
 npm run lint    # web
 ```
 

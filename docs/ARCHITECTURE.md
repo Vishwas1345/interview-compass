@@ -66,7 +66,7 @@ MongoDB (D11), three collections; indexes declared in `api/src/db/mongo.js`.
 
 | Collection | Holds | Indexes |
 |---|---|---|
-| `users` | `email` (lower-case), `passwordHash` (`scrypt$salt$hash`), `createdAt`, `profile` `{ name, jobTitle, phone, location, linkedin, website, bio }`, `photo` / `resume` `{ data: Binary, contentType, size, … }` (D16; never loaded by the signed-in check) | `email` unique |
+| `users` | `email` (lower-case), `passwordHash` (scrypt, D19; absent on Google accounts), `googleId` (Google's `sub`, D22), `createdAt`, `profile` `{ name, jobTitle, phone, location, linkedin, website, bio }`, `photo` / `resume` `{ data: Binary, contentType, size, … }` (D16; never loaded by the signed-in check) | `email` unique; `googleId` unique where it exists |
 | `sessions` | `_id` = SHA-256 of the cookie token, `userId`, `expiresAt` | TTL on `expiresAt`; `userId` |
 | `kits` | `userId`, `status` (`generating` / `ready` / `failed` / `interrupted`), `input` `{ jd, company_url, days }`, `dedupeKey`, `progress[]`, `checkpoint` (saved step results, D12), `error`, `kit` (Appendix A + additive fields), `version`, `counters` `{ q, f }`, `dismissed` `{ category: [prompt] }`, `scheduleStale`, `regenerating` (lock), `lastRegeneration`, `practice` `{ itemId: { confidence, count, lastAt } }` | `userId, createdAt`; `userId, dedupeKey`; `userId` unique where `status: "generating"` |
 
@@ -80,7 +80,10 @@ Express 5, everything under `/api` (the web app proxies `/api/*`, D10). Errors a
 |---|---|---|
 | GET | `/api/health` | liveness (also wakes the free instance) |
 | POST | `/api/auth/register`, `/api/auth/login`, `/api/auth/logout` | accounts; login sets the session cookie |
-| GET | `/api/auth/me` | the signed-in user; 401 `UNAUTHENTICATED` or `SESSION_EXPIRED` |
+| GET | `/api/auth/me` | the signed-in user (with `signInMethod`: `google` / `password`); 401 `UNAUTHENTICATED` or `SESSION_EXPIRED` |
+| GET | `/api/auth/options` | `{ google }`: whether Google sign-in is offered |
+| GET | `/api/auth/google/start?next=` | 302 to Google; sets the 10-minute `ic_google` round-trip cookie (D22) |
+| GET | `/api/auth/google/callback` | from Google: checks the round trip, exchanges the code, signs in; 303 to `next` (or `/profile?notice=google-linked`), or to `/login?error=google_cancelled|google_expired|google_unverified|google_unavailable` |
 | GET / POST | `/api/kits` | list; create (202, starts generation; 200 joins the same running one; 409 `DUPLICATE` / `GENERATION_RUNNING`; 429 `DAILY_LIMIT`) |
 | GET / DELETE | `/api/kits/:id` | the kit with status, progress, warnings, practice; delete |
 | POST | `/api/kits/:id/resume` | continue an interrupted or failed generation from its checkpoint |
@@ -90,7 +93,7 @@ Express 5, everything under `/api` (the web app proxies `/api/*`, D10). Errors a
 | POST | `/api/kits/:id/coach` | `{ itemId, answer }` → `{ covered, missed, improvement }` (D15) |
 | GET / PATCH | `/api/profile` | profile details (name, job title, phone, location, links, bio) and file metadata |
 | PUT / GET / DELETE | `/api/profile/photo`, `/api/profile/resume` | raw-body uploads behind `X-Requested-With` (D16); downloads with the detected type and `nosniff` |
-| POST | `/api/account/email`, `/api/account/password`, `/api/account/delete` | need the current password; a password change signs out other devices |
+| POST | `/api/account/email`, `/api/account/password`, `/api/account/delete` | need the current password; a password change signs out other devices. Google accounts: email and password answer 409 `GOOGLE_ACCOUNT`; delete takes `{ confirmEmail }` |
 
 Middleware order: request id → access log → security headers → JSON body (200 KB) → JSON-only mutations → `requireUser` on `/api/kits`, `/api/profile`, `/api/account` → routes → error handler.
 
@@ -103,7 +106,8 @@ Next.js 16 App Router (`web/src/app`), JavaScript, Tailwind 4, no component or s
 | Route | Screen |
 |---|---|
 | `/` | landing |
-| `/login`, `/register` | one `AuthForm`; returns to `?next=` (same-site paths only); `?expired=1` shows "your session ended" |
+| `/login`, `/register` | one `AuthForm`; Continue with Google when offered (D22); returns to `?next=` (same-site paths only); `?expired=1` shows "your session ended"; `?error=google_*` shows why Google sign-in failed |
+| `/privacy` | what is stored and who else sees it; public, linked from sign-in (Google requires it to publish the sign-in app, D22) |
 | `/kits` | kit list: loading skeleton, empty state, error with retry, delete with confirmation |
 | `/kits/new` | create form: field checks, draft kept in `sessionStorage`, duplicate dialog (open / create anyway / change days) |
 | `/kits/[id]` | while generating: step-by-step progress (polled every 2 s), resume/try again; when ready: the builder (tabs: Questions, Requirements & coverage, Flashcards, Schedule, Company brief, Research) |
@@ -123,6 +127,7 @@ Next.js 16 App Router (`web/src/app`), JavaScript, Tailwind 4, no component or s
 
 - **Untrusted text is data.** The posting, fetched pages, search results, and user-written kit text sent back to the model (regeneration avoid-lists, coach answers) are wrapped in `<untrusted_content>` with look-alike tags stripped; every system prompt carries the rule to treat them as data. Live test: injected instructions in a posting and on a company page left the kit unchanged.
 - **Fetching (D6).** URLs are normalised and checked; private, loopback, link-local and reserved addresses are refused in production by range (`net.BlockList`; IPv6 only in `2000::/3`, so IPv4-mapped forms in any notation are refused), re-checked on every redirect, and a redirect that is malformed or not http(s) is a skipped page; HTML only, 2 MB cap, 10 s timeout, robots.txt respected.
+- **Google sign-in (D22).** Server-side code flow with `state`, PKCE and `nonce`; ID token claims checked; unverified emails refused; a same-email password account loses its password and sessions; the `?next=` guard (`shared/src/safe-next.js`) runs on both sides.
 - **Accounts (D10).** scrypt passwords; session tokens stored only as SHA-256; `httpOnly`, `SameSite=Lax`, `Secure` cookies; JSON-only mutations against CSRF; one message for wrong email or password.
 - **Authorisation.** Every kit query includes the user's id; another user's kit is "not found".
 - **Uploads (D16).** Raw bodies behind a custom-header guard; type from the file's bytes; 1 MB photo, 4 MB résumé; served with the detected type and `nosniff`, the résumé as a sandboxed attachment; only the owner's own files are reachable. The résumé is never read.
@@ -143,7 +148,7 @@ Hosting (D9, D21): web and API as two Render free web services, MongoDB on Atlas
 **CI/CD (D20)**, in `.github/workflows/ci.yml`:
 
 ```
-push / pull request ──► ci: npm ci → lint → test (258) → build web → npm audit
+push / pull request ──► ci: npm ci → lint → test → build web → npm audit
                               │
 push to main, ci green ───────┴──► deploy: Render deploy hooks (API, web)
 ```

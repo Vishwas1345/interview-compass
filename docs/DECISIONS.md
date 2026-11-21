@@ -291,3 +291,17 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 **Why:** one platform and one dashboard for both halves, and one deploy mechanism (hooks) triggered from one job, so the API and the web app always ship the same tested commit. Nothing in the web app depends on Vercel: the `/api/*` rewrite runs in the Next.js server on any host, and `onrender.com` is a public suffix, so the two services are still separate sites and the first-party cookie through the rewrite (D10) is still the right design.
 
 **Cost we accept:** the web service sleeps too, so a cold visit can wait for two wake-ups (up to about a minute); and both services draw on the workspace's shared 750 free hours a month (L11).
+
+---
+
+## D22 — Google sign-in: our own server-side OpenID Connect flow; Google's verified email wins
+
+**Date:** 2026-11-21
+
+**Decision:** "Continue with Google" next to email and password (spec: `docs/specs/google-sign-in/SPEC.md`). The API runs the authorization code flow itself, with no library: `/api/auth/google/start` sends the browser to Google with `state`, `nonce` and a PKCE S256 challenge, keeping the three secrets in a 10-minute httpOnly `ic_google` cookie; `/api/auth/google/callback` checks that cookie (single use), exchanges the code server to server (10 s timeout, no retry), checks the ID token's issuer, audience, expiry, nonce and `email_verified`, and starts the usual session. Accounts are matched by Google's `sub` (`users.googleId`, unique partial index). A password account with the same email becomes a Google account: its password is removed and its sessions end. Google accounts have no password, so their email and password are managed by Google, and deleting one is confirmed by typing its email. On only when `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `APP_ORIGIN` are all set; otherwise the button is hidden.
+
+**Considered:** `openid-client` or `google-auth-library`; Google's in-page button posting an ID token (needs signature checks and Google's script under our CSP); Auth.js (replaces our sessions); on a same-email match, refusing, or linking and keeping the password.
+
+**Why:** the ID token comes straight from Google's token endpoint over TLS with our client secret, so OpenID Connect Core 3.1.3.7 lets us skip signature checks, and the whole flow is about 150 lines that plug into the existing session (D10) and are tested against a fake token endpoint. The app never verifies emails, so anyone could register an address with a password first; Google's verified email is the first real proof of ownership, and keeping the old password on linking would let that squatter keep access (account pre-hijacking). The round-trip secrets live in a cookie rather than the database: nothing to clean up, and the browser cannot set it for someone else (httpOnly, and `onrender.com` is a public suffix). The callback URL is on the web origin, so the session cookie stays first-party through the proxy.
+
+**Cost we accept:** a password user who signs in with Google loses the password (they are told once); connecting or disconnecting Google later, setting a password on a Google account, and other providers are not built (GAPS L12).
