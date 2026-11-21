@@ -19,9 +19,9 @@ There is a second, quieter problem: the app never checks that an email belongs t
 
 ## How it works in the app
 - **The normal case:** the app sends the visitor to Google, Google sends them back with a one-time code, and the app swaps that code with Google directly for the person's Google account id, email and name. The app then finds the matching account or creates one, and signs them in exactly as password sign-in does (same 7-day session, same sign-out).
-- **First sign-in with Google, new email:** a new account is created. The profile name is filled from Google; everything else starts empty, as for any new account.
+- **First sign-in with Google, new email:** a new account is created. The profile name and photo are filled from Google (the photo is copied into the app, so it keeps working if Google's link changes); everything else starts empty, as for any new account.
 - **Returning Google user:** recognised by their Google account id, not by email. If their Google email has changed since, the account's email follows it, unless another account already uses the new one.
-- **Email already has a password account:** the Google sign-in proves the email is theirs, so the account becomes a Google account. The old password is removed, every other signed-in device is signed out, and the person sees a one-time notice: "Your account now signs in with Google. Your old password no longer works."
+- **Email already has a password account:** the Google sign-in proves the email is theirs, so the account becomes a Google account, and a missing name or photo is filled from Google. The old password is removed, every other signed-in device is signed out, and the person sees a one-time notice: "Your account now signs in with Google. Your old password no longer works."
 - **Accounts without a password, on the profile page:**
   - the email is shown as managed by Google and cannot be edited here;
   - the password section says "You sign in with Google";
@@ -42,6 +42,8 @@ There is a second, quieter problem: the app never checks that an email belongs t
 - **Where to go afterwards is checked like today:** only a page on this site. *Why:* the existing open-redirect protection must not have a Google-shaped hole.
 - **Password sign-in for a Google-only account** gives the usual "Email or password is incorrect." *Why:* a different message would reveal which emails have accounts.
 - **Signing up with a password using an email that has a Google account** gives the usual "An account with this email already exists." (unchanged behaviour).
+- **Google fills only what is empty, and only at the first Google sign-in.** *Why:* a name or photo the person chose is theirs, and a photo they removed must not come back at the next sign-in.
+- **A photo problem never stops a sign-in;** only Google's own image links are fetched, with no redirects, a 1 MB cap and a 3-second limit. *Why:* the photo is a nicety, and the download must not be steerable to anything else.
 - **Old accounts** (made before this feature) are untouched until their owner chooses Google.
 - **Two Google sign-ins at once** (two tabs): each is its own round trip; both end signed in to the same account.
 
@@ -63,12 +65,13 @@ There is a second, quieter problem: the app never checks that an email belongs t
 - Connecting or disconnecting Google from the profile later: not needed to sign in, and it adds account-merging rules.
 - Setting a password on a Google account: Google is enough to sign in; it would need its own re-confirmation step.
 - Other providers (GitHub, Microsoft, Apple): one provider covers the need; the same design extends later.
-- Using the Google profile photo: it would mean fetching and storing an outside image; people can upload one.
+- Phone, job title, location or links from Google: they need extra Google permissions and Google's review, and a harsher consent screen.
 - Google's in-page one-tap prompt: it needs Google's script on every page and a loosened security policy.
 
 ## Acceptance criteria
 - [ ] When Google is configured, the sign-in and sign-up pages show **Continue with Google**; when it is not, they do not.
-- [x] A new visitor who chooses a Google account lands on their kits, signed in, with their Google name on the profile.
+- [x] A new visitor who chooses a Google account lands on their kits, signed in, with their Google name and photo on the profile.
+- [x] A name or photo the person already set is never replaced by Google's, and a photo they removed does not come back.
 - [x] Signing out and back in with the same Google account opens the same account and its kits.
 - [x] Signing in with Google from a page that required sign-in returns the person to that page.
 - [x] A `?next=` pointing at another site sends the person to their kits instead.

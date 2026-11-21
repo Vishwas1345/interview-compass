@@ -15,8 +15,8 @@ const SECTIONS = [
   {
     title: "Google sign-in",
     items: [
-      "If you choose Continue with Google, Google tells us your name, your email address, whether Google has verified that email, and an account id. We ask for nothing else: not your contacts, mail, files or calendar.",
-      "We use this only to sign you in and to fill in your name. We do not share it.",
+      "If you choose Continue with Google, Google tells us your name, your email address, whether Google has verified that email, your profile photo and an account id. We ask for nothing else: not your contacts, mail, files or calendar.",
+      "We use this only to sign you in and, the first time, to fill in your name and photo if your profile has none. The photo is copied into the app; you can replace or remove it on your profile. We do not share any of it.",
     ],
   },
   {

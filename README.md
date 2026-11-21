@@ -229,12 +229,12 @@ Known limits: the web CSP has no script policy (L9); throttles live in one proce
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/ci.yml`, D20): every push and pull request runs install, lint, the 282 tests, a production build and a dependency audit. Pushes to `main` that pass are then deployed, both Render services (API and web) through their deploy hooks, so only tested commits reach production. Dependabot proposes weekly updates, which go through the same checks. Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#deployment).
+GitHub Actions (`.github/workflows/ci.yml`, D20): every push and pull request runs install, lint, the 288 tests, a production build and a dependency audit. Pushes to `main` that pass are then deployed, both Render services (API and web) through their deploy hooks, so only tested commits reach production. Dependabot proposes weekly updates, which go through the same checks. Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#deployment).
 
 ## Testing
 
 ```bash
-npm test        # 282 tests: node:test, real throwaway MongoDB (mongodb-memory-server), fake model, local fixture sites
+npm test        # 288 tests: node:test, real throwaway MongoDB (mongodb-memory-server), fake model, local fixture sites
 npm run lint    # web
 ```
 

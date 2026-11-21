@@ -10,17 +10,24 @@ export function idToken(claims) {
 }
 
 // claimsFor(form) → claims for the ID token, or a function returning a Response
-// (to simulate failures). requests: every call, with its parsed form body.
-export function fakeGoogle(claimsFor) {
+// (to simulate failures). requests: every token call, with its parsed form body.
+// pictures(url, init) → the Response for a profile photo download (default 404);
+// pictureRequests records them.
+export function fakeGoogle(claimsFor, { pictures } = {}) {
   const requests = [];
-  async function fetch(url, init) {
+  const pictureRequests = [];
+  async function fetch(url, init = {}) {
+    if (new URL(url).hostname.endsWith("googleusercontent.com")) {
+      pictureRequests.push({ url, init });
+      return pictures ? pictures(url, init) : new Response("not found", { status: 404 });
+    }
     const form = Object.fromEntries(new URLSearchParams(String(init.body)));
     requests.push({ url, form, init });
     const answer = await claimsFor(form);
     if (answer instanceof Response) return answer;
     return Response.json({ access_token: "unused", token_type: "Bearer", id_token: idToken(answer) });
   }
-  return { fetch, requests };
+  return { fetch, requests, pictureRequests };
 }
 
 // Claims Google would send for a person, valid now (pass the clock's now).

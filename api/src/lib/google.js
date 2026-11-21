@@ -8,6 +8,7 @@ const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const ISSUERS = new Set(["accounts.google.com", "https://accounts.google.com"]);
 export const SCOPES = "openid email profile"; // identity only: no mail, contacts or files
 const NAME_MAX = 80; // the profile's name limit
+const PICTURE_HOST = "googleusercontent.com"; // where Google serves profile photos
 
 // reason: "unverified" (Google has not verified the email) | "unavailable" (anything else).
 export class GoogleSignInError extends Error {
@@ -19,7 +20,7 @@ export class GoogleSignInError extends Error {
 }
 const unavailable = (detail) => new GoogleSignInError("unavailable", detail);
 
-export function createGoogleClient({ clientId, clientSecret, redirectUri, fetch = globalThis.fetch, now = () => new Date(), timeoutMs = 10_000 }) {
+export function createGoogleClient({ clientId, clientSecret, redirectUri, fetch = globalThis.fetch, now = () => new Date(), timeoutMs = 10_000, pictureTimeoutMs = 3_000 }) {
   // Where to send the browser. prompt=select_account lets people pick which account.
   function authUrl({ state, nonce, challenge }) {
     const params = new URLSearchParams({
@@ -67,7 +68,37 @@ export function createGoogleClient({ clientId, clientSecret, redirectUri, fetch 
     return checkClaims(decodeIdToken(body?.id_token), { clientId, nonce, now: now() });
   }
 
-  return { authUrl, exchange };
+  // The person's Google photo → Buffer, or null for any problem: a photo is a nicety
+  // and must never stop a sign-in. Only https links on Google's image host are
+  // fetched, redirects are refused (one could point anywhere), and the size is capped.
+  async function fetchPicture(link, maxBytes) {
+    const url = pictureUrl(link);
+    if (!url) return null;
+    try {
+      const response = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(pictureTimeoutMs) });
+      if (!response.ok || Number(response.headers.get("content-length")) > maxBytes) return null;
+      const data = Buffer.from(await response.arrayBuffer());
+      return data.length > 0 && data.length <= maxBytes ? data : null;
+    } catch {
+      return null;
+    }
+  }
+
+  return { authUrl, exchange, fetchPicture };
+}
+
+// A Google photo link we are willing to fetch, sized to 256 px → string | null.
+export function pictureUrl(link) {
+  let url;
+  try {
+    url = new URL(link);
+  } catch {
+    return null;
+  }
+  const onGoogle = url.hostname === PICTURE_HOST || url.hostname.endsWith(`.${PICTURE_HOST}`);
+  if (url.protocol !== "https:" || !onGoogle || url.username || url.password || url.port) return null;
+  url.pathname = url.pathname.replace(/=s\d+(-c)?$/, "=s256-c");
+  return url.href;
 }
 
 // The claims (middle part) of a JWT. → object; throws when it is not a JWT.
@@ -95,5 +126,6 @@ export function checkClaims(claims, { clientId, nonce, now }) {
   if (typeof claims.email !== "string" || !claims.email.includes("@")) throw unavailable("ID token has no email");
   if (claims.email_verified !== true && claims.email_verified !== "true") throw new GoogleSignInError("unverified", "Google has not verified this email");
   const name = typeof claims.name === "string" ? claims.name.trim().slice(0, NAME_MAX) : "";
-  return { sub: claims.sub, email: claims.email.trim().toLowerCase(), name };
+  const picture = typeof claims.picture === "string" ? claims.picture : ""; // checked before any fetch
+  return { sub: claims.sub, email: claims.email.trim().toLowerCase(), name, picture };
 }

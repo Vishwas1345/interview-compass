@@ -44,10 +44,11 @@ export function createApp({ db, jobs, coach, google = null, production = false, 
   if (db) {
     const models = createModels(db);
     const sessions = createSessionService({ sessions: models.sessions, now });
+    const profile = createProfileService({ users: models.users, now });
     const services = {
-      auth: createAuthService({ users: models.users, sessions, now }),
+      auth: createAuthService({ users: models.users, sessions, profile, fetchPicture: google ? google.fetchPicture : undefined, now }),
       account: createAccountService({ users: models.users, kits: models.kits, sessions }),
-      profile: createProfileService({ users: models.users, now }),
+      profile,
       kits: createKitService({ kits: models.kits, users: models.users, jobs, coach, now }),
     };
     const signedIn = requireUser({ sessions, users: models.users, production });

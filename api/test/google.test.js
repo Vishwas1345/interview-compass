@@ -2,7 +2,7 @@
 // and every claim check that stops a forged, replayed or foreign token.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createGoogleClient, checkClaims, GoogleSignInError, SCOPES } from "../src/lib/google.js";
+import { createGoogleClient, checkClaims, GoogleSignInError, SCOPES, pictureUrl } from "../src/lib/google.js";
 import { challengeFor } from "../src/utils/pkce.js";
 import { loadConfig, productionProblems, googleEnabled } from "../src/config/index.js";
 import { TEST_GOOGLE, fakeGoogle, claims } from "./helpers/google.js";
@@ -39,7 +39,7 @@ test("the challenge is the base64url SHA-256 of the verifier (RFC 7636 example)"
 test("the exchange posts code, verifier, redirect and secret in the body, and returns the identity", async () => {
   const google = fakeGoogle(() => claims(NOW, { nonce: "n1", email: " Person@Example.com " }));
   const identity = await client(google.fetch).exchange("code-1", "verifier-1", "n1");
-  assert.deepEqual(identity, { sub: "google-sub-1", email: "person@example.com", name: "Asha Rao" });
+  assert.deepEqual(identity, { sub: "google-sub-1", email: "person@example.com", name: "Asha Rao", picture: "" });
   const [{ url, form, init }] = google.requests;
   assert.equal(url, "https://oauth2.googleapis.com/token");
   assert.equal(init.method, "POST");
@@ -100,4 +100,47 @@ test("Google sign-in is on only when all three settings exist, and production re
   assert.deepEqual(productionProblems(loadConfig(base)), [], "no Google at all is fine");
   assert.match(productionProblems(loadConfig({ ...base, GOOGLE_CLIENT_ID: "id" })).join(), /set together/);
   assert.match(productionProblems(loadConfig({ ...base, ...full, APP_ORIGIN: "http://app.example" })).join(), /https/);
+});
+
+// --- the Google profile photo -------------------------------------------------
+
+test("the photo link is passed on, and only https links on Google's image host are ever fetched", () => {
+  assert.equal(check({ picture: "https://lh3.googleusercontent.com/a/abc=s96-c" }).picture, "https://lh3.googleusercontent.com/a/abc=s96-c");
+  assert.equal(check({ picture: 42 }).picture, "");
+  assert.equal(pictureUrl("https://lh3.googleusercontent.com/a/abc=s96-c"), "https://lh3.googleusercontent.com/a/abc=s256-c", "asks for a 256 px square");
+  assert.equal(pictureUrl("https://lh3.googleusercontent.com/a/abc"), "https://lh3.googleusercontent.com/a/abc");
+  for (const bad of [
+    "http://lh3.googleusercontent.com/a/abc", // not https
+    "https://169.254.169.254/latest/meta-data", // internal address
+    "https://googleusercontent.com.evil.example/a", // look-alike host
+    "https://evilgoogleusercontent.com/a", // suffix without the dot
+    "https://user:pw@lh3.googleusercontent.com/a", // credentials
+    "https://lh3.googleusercontent.com:8443/a", // odd port
+    "not a url",
+    "",
+  ]) {
+    assert.equal(pictureUrl(bad), null, bad);
+  }
+});
+
+test("downloading the photo: no redirects, a size cap, a time limit, and any failure is just 'no photo'", async () => {
+  const URL_OK = "https://lh3.googleusercontent.com/a/abc=s96-c";
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(100, 1)]);
+  const withPicture = (pictures, timeoutMs) => createGoogleClient({ ...TEST_GOOGLE, redirectUri: REDIRECT, fetch: fakeGoogle(null, { pictures }).fetch, pictureTimeoutMs: timeoutMs });
+  let seen;
+  const ok = await withPicture((_url, init) => ((seen = init), new Response(png, { headers: { "content-type": "image/png" } }))).fetchPicture(URL_OK, 1000);
+  assert.deepEqual(ok, png);
+  assert.equal(seen.redirect, "error", "a redirect could point anywhere, so none is followed");
+  assert.ok(seen.signal, "the download has a time limit");
+  assert.equal(await withPicture(() => new Response(png)).fetchPicture("https://evil.example/a.png", 1000), null, "bad links are never fetched");
+  assert.equal(await withPicture(() => new Response(png)).fetchPicture(URL_OK, 50), null, "bigger than the cap");
+  assert.equal(await withPicture(() => new Response(png, { headers: { "content-length": "99999999" } })).fetchPicture(URL_OK, 1000), null, "declared too big");
+  assert.equal(await withPicture(() => new Response("gone", { status: 404 })).fetchPicture(URL_OK, 1000), null);
+  assert.equal(await withPicture(() => Promise.reject(new TypeError("redirect"))).fetchPicture(URL_OK, 1000), null);
+  const hanging = (_url, { signal }) =>
+    new Promise((_resolve, reject) => {
+      const keepAlive = setTimeout(() => {}, 10_000); // see the token endpoint timeout test
+      signal.addEventListener("abort", () => (clearTimeout(keepAlive), reject(signal.reason)));
+    });
+  assert.equal(await withPicture(hanging, 20).fetchPicture(URL_OK, 1000), null, "too slow");
 });

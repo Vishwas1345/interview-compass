@@ -18,7 +18,11 @@ let testDb, app, plain, clock;
 // claims and the nonce from the request's own round trip (via `pendingNonce`).
 let person, answer, pendingNonce;
 const logged = [];
-const google = fakeGoogle(() => (answer ? answer() : claims(clock.now(), { ...person, nonce: pendingNonce })));
+// Google's photo server: a small PNG unless a test says otherwise.
+const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(2048, 3)]);
+let picture = () => new Response(PNG, { headers: { "content-type": "image/png" } });
+const PHOTO = "https://lh3.googleusercontent.com/a/photo=s96-c";
+const google = fakeGoogle(() => (answer ? answer() : claims(clock.now(), { ...person, nonce: pendingNonce })), { pictures: (url, init) => picture(url, init) });
 
 before(async () => {
   testDb = await startTestDb();
@@ -271,4 +275,76 @@ test("a password account still needs its password to delete; a typed email is no
   assert.equal(typed.body.error.message, "Enter your current password.");
   assert.equal((await b.post("/api/account/delete", { password: "wrong" })).status, 401);
   assert.equal((await b.post("/api/account/delete", { password: PASSWORD })).status, 204);
+});
+
+// --- filling the profile from Google ------------------------------------------
+
+const photoOf = async (b) => {
+  const res = await b.raw("GET", "/api/profile/photo");
+  return res.status === 200 ? res.status : null;
+};
+
+test("a new Google account gets its name and its Google photo, copied into the app", async () => {
+  const { b } = await signIn({ sub: "pic-1", email: "pic.one@example.com", name: "Pic One", picture: PHOTO });
+  const profile = (await b.get("/api/profile")).body.profile;
+  assert.equal(profile.name, "Pic One");
+  assert.equal(profile.photo.contentType, "image/png");
+  assert.equal(profile.photo.size, PNG.length);
+  assert.notEqual(profile.user.photoVersion, null, "the sidebar shows it");
+  const download = google.pictureRequests.at(-1);
+  assert.equal(download.url, "https://lh3.googleusercontent.com/a/photo=s256-c");
+  assert.equal(download.init.redirect, "error");
+  assert.equal(await photoOf(b), 200, "served from our own site");
+});
+
+test("taking over a password account fills only what is empty, never what the person set", async () => {
+  // Empty profile: gets Google's name and photo.
+  const empty = browser(app.origin);
+  await empty.post("/api/auth/register", { email: "empty.profile@example.com", password: PASSWORD });
+  const first = await signIn({ sub: "fill-1", email: "empty.profile@example.com", name: "From Google", picture: PHOTO });
+  const filled = (await first.b.get("/api/profile")).body.profile;
+  assert.equal(filled.name, "From Google");
+  assert.equal(filled.photo.contentType, "image/png");
+
+  // Own name and photo: both kept.
+  const own = browser(app.origin);
+  await own.post("/api/auth/register", { email: "own.profile@example.com", password: PASSWORD });
+  await own.raw("PATCH", "/api/profile", { name: "My Own Name" });
+  const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(500, 9)]);
+  await fetch(`${app.origin}/api/profile/photo`, { method: "PUT", headers: { "Content-Type": "image/jpeg", "X-Requested-With": "InterviewCompass", Cookie: [...own.jar].map(([k, v]) => `${k}=${v}`).join("; ") }, body: jpeg });
+  const before = (await own.get("/api/profile")).body.profile;
+  assert.equal(before.photo.contentType, "image/jpeg");
+  const second = await signIn({ sub: "fill-2", email: "own.profile@example.com", name: "From Google", picture: PHOTO });
+  const kept = (await second.b.get("/api/profile")).body.profile;
+  assert.equal(kept.name, "My Own Name");
+  assert.equal(kept.photo.contentType, "image/jpeg");
+});
+
+test("a photo the person removed is not brought back at the next Google sign-in", async () => {
+  const { b } = await signIn({ sub: "removed-1", email: "removed@example.com", name: "R", picture: PHOTO });
+  assert.equal((await b.del("/api/profile/photo")).status, 200);
+  const again = await signIn({ sub: "removed-1", email: "removed@example.com", name: "R", picture: PHOTO });
+  assert.equal((await again.b.get("/api/profile")).body.profile.photo, null);
+});
+
+test("a bad or failed photo never stops the sign-in", async () => {
+  const cases = {
+    "not an image": () => new Response("<html>hello</html>", { headers: { "content-type": "image/png" } }),
+    "too big": () => new Response(Buffer.concat([PNG, Buffer.alloc(1024 * 1024)])),
+    "server error": () => new Response("no", { status: 500 }),
+    "refused redirect": () => Promise.reject(new TypeError("fetch failed: redirect mode is set to error")),
+  };
+  let n = 0;
+  for (const [name, answerWith] of Object.entries(cases)) {
+    picture = answerWith;
+    const { res, b } = await signIn({ sub: `badpic-${++n}`, email: `badpic${n}@example.com`, name: "B", picture: PHOTO });
+    assert.equal(res.location, "/kits", name);
+    assert.equal((await b.get("/api/profile")).body.profile.photo, null, name);
+  }
+  picture = () => new Response(PNG);
+  // A link off Google's image host is never even requested.
+  const calls = google.pictureRequests.length;
+  const { b } = await signIn({ sub: "badpic-host", email: "badpic.host@example.com", name: "B", picture: "https://169.254.169.254/latest/meta-data" });
+  assert.equal(google.pictureRequests.length, calls);
+  assert.equal((await b.get("/api/profile")).body.profile.photo, null);
 });
