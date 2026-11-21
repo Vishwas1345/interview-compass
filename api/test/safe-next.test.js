@@ -2,7 +2,7 @@
 // check, and Next's router followed it to https://evil.com/ after sign-in.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { safeNext } from "../../web/src/lib/safe-next.js";
+import { safeNext } from "@interview-compass/shared";
 
 const ORIGIN = "https://app.test";
 

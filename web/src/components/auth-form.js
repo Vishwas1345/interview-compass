@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { post } from "@/lib/api";
 import { useSession } from "@/components/session";
-import { DEFAULT_NEXT, safeNext } from "@/lib/safe-next";
+import { DEFAULT_NEXT, safeNext } from "@interview-compass/shared";
 import { Alert, Button, Card, Field } from "@/components/ui";
 
 const PASSWORD_MIN = 8;
