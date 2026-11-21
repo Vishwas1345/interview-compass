@@ -6,7 +6,12 @@ const WITHOUT_FILES = { "photo.data": 0, "resume.data": 0 };
 export function createUserModel(db) {
   const users = db.collection("users");
   return {
-    ensureIndexes: () => users.createIndex({ email: 1 }, { unique: true }),
+    ensureIndexes: () =>
+      Promise.all([
+        users.createIndex({ email: 1 }, { unique: true }),
+        // Google's account id (D22); only Google accounts have one.
+        users.createIndex({ googleId: 1 }, { unique: true, partialFilterExpression: { googleId: { $exists: true } } }),
+      ]),
 
     async create(user) {
       const { insertedId } = await users.insertOne(user);
@@ -14,6 +19,7 @@ export function createUserModel(db) {
     },
     findByEmail: (email) => users.findOne({ email }, { projection: WITHOUT_FILES }),
     findById: (id) => users.findOne({ _id: id }, { projection: WITHOUT_FILES }),
+    findByGoogleId: (googleId) => users.findOne({ googleId }, { projection: WITHOUT_FILES }),
     async findPasswordHash(id) {
       return (await users.findOne({ _id: id }, { projection: { passwordHash: 1 } }))?.passwordHash ?? null;
     },
@@ -24,6 +30,9 @@ export function createUserModel(db) {
     },
     setEmail: (id, email) => users.updateOne({ _id: id }, { $set: { email } }),
     setPasswordHash: (id, passwordHash) => users.updateOne({ _id: id }, { $set: { passwordHash } }),
+    // The account becomes a Google account: Google proved the email, so a password
+    // someone else may have set on it (emails are never verified here) is removed.
+    linkGoogle: (id, googleId) => users.updateOne({ _id: id }, { $set: { googleId }, $unset: { passwordHash: "" } }),
 
     // field: "photo" | "resume"
     setFile: (id, field, file) => users.updateOne({ _id: id }, { $set: { [field]: file } }),

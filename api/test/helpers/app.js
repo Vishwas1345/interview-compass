@@ -52,6 +52,7 @@ export function browser(origin) {
         ...headers,
       },
       body: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body),
+      redirect: "manual", // tests see redirects (Google sign-in) instead of following them
     });
     for (const line of response.headers.getSetCookie()) {
       const [pair, ...attributes] = line.split(";");
@@ -61,7 +62,13 @@ export function browser(origin) {
       else jar.set(name, value);
     }
     const text = await response.text();
-    return { status: response.status, body: text ? JSON.parse(text) : null, headers: response.headers };
+    let parsed = null;
+    try {
+      parsed = text ? JSON.parse(text) : null;
+    } catch {
+      parsed = text; // a redirect's short text body
+    }
+    return { status: response.status, body: parsed, headers: response.headers, location: response.headers.get("location") };
   }
   return {
     jar,

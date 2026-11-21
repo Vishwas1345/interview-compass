@@ -15,6 +15,13 @@ export function readCookie(req, name) {
   return null;
 }
 
+// The Google sign-in round trip (D22). Lax still travels on the top-level return
+// from Google; the path keeps it off every other request.
+export const ROUND_TRIP_MS = 10 * 60 * 1000;
+export function roundTripCookieOptions({ production, maxAgeMs }) {
+  return { httpOnly: true, sameSite: "lax", secure: production, path: "/api/auth/google", ...(maxAgeMs ? { maxAge: maxAgeMs } : {}) };
+}
+
 export function sessionCookieOptions({ production, maxAgeMs }) {
   return { httpOnly: true, sameSite: "lax", secure: production, path: "/", ...(maxAgeMs ? { maxAge: maxAgeMs } : {}) };
 }

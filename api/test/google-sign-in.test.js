@@ -1,0 +1,227 @@
+// Google sign-in through the API (D22, spec docs/specs/google-sign-in/SPEC.md):
+// the round trip, the account rules, and every failure. Google's token endpoint is
+// faked; everything else is real (Express, MongoDB, sessions).
+import { test, before, after } from "node:test";
+import assert from "node:assert/strict";
+import { startTestDb, startTestApp, browser, testClock } from "./helpers/app.js";
+import { TEST_GOOGLE, fakeGoogle, claims } from "./helpers/google.js";
+import { createGoogleClient } from "../src/lib/google.js";
+import { challengeFor } from "../src/utils/pkce.js";
+import { createAuthService } from "../src/services/auth.service.js";
+import { createSessionService } from "../src/services/session.service.js";
+import { createModels } from "../src/models/index.js";
+
+const MIN = 60 * 1000;
+const PASSWORD = "long enough pw";
+let testDb, app, plain, clock;
+// Who Google says is signing in, per test. The fake answers the exchange with these
+// claims and the nonce from the request's own round trip (via `pendingNonce`).
+let person, answer, pendingNonce;
+const logged = [];
+const google = fakeGoogle(() => (answer ? answer() : claims(clock.now(), { ...person, nonce: pendingNonce })));
+
+before(async () => {
+  testDb = await startTestDb();
+  clock = testClock();
+  const client = createGoogleClient({ ...TEST_GOOGLE, redirectUri: "http://localhost/api/auth/google/callback", fetch: google.fetch, now: clock.now });
+  app = await startTestApp({ db: testDb.db, now: clock.now, google: client, log: (line) => logged.push(line) });
+  plain = await startTestApp({ db: testDb.db, now: clock.now }); // Google not configured
+});
+after(async () => {
+  app.close();
+  plain.close();
+  await testDb.stop();
+});
+
+// Step 1 in a browser: → { b, state, nonce, url }
+async function start(b = browser(app.origin), next) {
+  const res = await b.get(`/api/auth/google/start${next ? `?next=${encodeURIComponent(next)}` : ""}`);
+  assert.equal(res.status, 302);
+  const url = new URL(res.location);
+  return { b, res, url, state: url.searchParams.get("state"), nonce: url.searchParams.get("nonce") };
+}
+// The whole round trip as `who`: → the callback response
+async function signIn(who, { b, next } = {}) {
+  const trip = await start(b, next);
+  person = who;
+  pendingNonce = trip.nonce;
+  const res = await trip.b.get(`/api/auth/google/callback?code=code-${Math.random()}&state=${trip.state}`);
+  return { ...trip, res };
+}
+const users = () => testDb.db.collection("users");
+
+test("options say whether Google sign-in is offered; without setup its routes do not exist", async () => {
+  assert.deepEqual((await browser(app.origin).get("/api/auth/options")).body, { google: true });
+  assert.deepEqual((await browser(plain.origin).get("/api/auth/options")).body, { google: false });
+  assert.equal((await browser(plain.origin).get("/api/auth/google/start")).status, 404);
+  assert.equal((await browser(plain.origin).get("/api/auth/google/callback?code=x&state=y")).status, 404);
+});
+
+test("start sends the browser to Google with a fresh state, nonce and PKCE challenge kept in a short httpOnly cookie", async () => {
+  const { res, url, b } = await start();
+  assert.equal(url.origin, "https://accounts.google.com");
+  const cookie = res.headers.getSetCookie().find((c) => c.startsWith("ic_google="));
+  assert.match(cookie, /HttpOnly/i);
+  assert.match(cookie, /SameSite=Lax/i);
+  assert.match(cookie, /Path=\/api\/auth\/google/i);
+  assert.match(cookie, /Max-Age=600/i);
+  const trip = JSON.parse(Buffer.from(b.jar.get("ic_google"), "base64url").toString());
+  assert.equal(trip.state, url.searchParams.get("state"));
+  assert.equal(trip.nonce, url.searchParams.get("nonce"));
+  assert.equal(challengeFor(trip.verifier), url.searchParams.get("code_challenge"), "Google sees only the challenge");
+  const again = await start();
+  assert.notEqual(again.state, trip.state, "every round trip has its own state");
+});
+
+test("a new person gets an account named from Google, is signed in, and lands on their kits", async () => {
+  const { res, b } = await signIn({ sub: "new-1", email: "new.person@example.com", name: "New Person" });
+  assert.equal(res.status, 303);
+  assert.equal(res.location, "/kits");
+  assert.equal(b.jar.has("ic_google"), false, "the round-trip cookie is gone");
+  const me = await b.get("/api/auth/me");
+  assert.equal(me.status, 200);
+  assert.equal(me.body.user.email, "new.person@example.com");
+  assert.equal(me.body.user.name, "New Person");
+  const stored = await users().findOne({ email: "new.person@example.com" });
+  assert.equal(stored.googleId, "new-1");
+  assert.equal(stored.passwordHash, undefined);
+  // The exchange carried this round trip's verifier.
+  const exchange = google.requests.at(-1).form;
+  assert.equal(challengeFor(exchange.code_verifier).length, 43);
+});
+
+test("a returning person opens the same account; a changed Google email follows unless it is taken", async () => {
+  const first = await signIn({ sub: "ret-1", email: "ret@example.com", name: "R" });
+  const id = (await first.b.get("/api/auth/me")).body.user.id;
+  const again = await signIn({ sub: "ret-1", email: "ret.new@example.com", name: "R" });
+  const me = (await again.b.get("/api/auth/me")).body.user;
+  assert.equal(me.id, id);
+  assert.equal(me.email, "ret.new@example.com");
+  await browser(app.origin).post("/api/auth/register", { email: "taken@example.com", password: PASSWORD });
+  const third = await signIn({ sub: "ret-1", email: "taken@example.com", name: "R" });
+  const kept = (await third.b.get("/api/auth/me")).body.user;
+  assert.equal(kept.id, id, "still the Google account, not the password one");
+  assert.equal(kept.email, "ret.new@example.com", "the email another account owns is not taken over");
+});
+
+test("a password account with the same email becomes a Google account: password gone, other sessions ended, notice shown", async () => {
+  const squatter = browser(app.origin);
+  assert.equal((await squatter.post("/api/auth/register", { email: "owner@example.com", password: PASSWORD })).status, 201);
+  assert.equal((await squatter.get("/api/auth/me")).status, 200);
+
+  const { res, b } = await signIn({ sub: "owner-1", email: "owner@example.com", name: "Owner" });
+  assert.equal(res.location, "/profile?notice=google-linked");
+  assert.equal((await b.get("/api/auth/me")).status, 200, "the Google person is signed in");
+  assert.equal((await squatter.get("/api/auth/me")).status, 401, "the earlier session ended");
+  const login = await browser(app.origin).post("/api/auth/login", { email: "owner@example.com", password: PASSWORD });
+  assert.equal(login.status, 401);
+  assert.equal(login.body.error.message, "Email or password is incorrect.", "the usual message, nothing revealed");
+  const stored = await users().findOne({ email: "owner@example.com" });
+  assert.equal(stored.googleId, "owner-1");
+  assert.equal(stored.passwordHash, undefined);
+});
+
+test("Google sign-in returns to the page that asked for it, never to another site", async () => {
+  assert.equal((await signIn({ sub: "n1", email: "n1@example.com" }, { next: "/kits/abc?tab=practice" })).res.location, "/kits/abc?tab=practice");
+  assert.equal((await signIn({ sub: "n2", email: "n2@example.com" }, { next: "//evil.example/x" })).res.location, "/kits");
+  assert.equal((await signIn({ sub: "n3", email: "n3@example.com" }, { next: "/\\evil.example" })).res.location, "/kits");
+});
+
+test("an unverified Google email is refused and creates nothing", async () => {
+  const { res, b } = await signIn({ sub: "unv-1", email: "unverified@example.com", email_verified: false }, { next: "/kits/x" });
+  assert.equal(res.location, "/login?error=google_unverified&next=%2Fkits%2Fx");
+  assert.equal(b.jar.has("ic_session"), false);
+  assert.equal(await users().countDocuments({ email: "unverified@example.com" }), 0);
+});
+
+test("cancelling at Google returns to sign-in with the cancelled message", async () => {
+  const { b } = await start();
+  const res = await b.get("/api/auth/google/callback?error=access_denied&state=whatever");
+  assert.equal(res.location, "/login?error=google_cancelled");
+  assert.equal(b.jar.has("ic_google"), false);
+});
+
+test("a forged, stale, foreign or replayed return signs no one in", async () => {
+  const calls = google.requests.length;
+  // No round-trip cookie at all (started in another browser).
+  const stranger = await browser(app.origin).get("/api/auth/google/callback?code=c&state=s");
+  assert.equal(stranger.location, "/login?error=google_expired");
+  // Wrong state (a forged return link).
+  const forged = await start();
+  assert.equal((await forged.b.get(`/api/auth/google/callback?code=c&state=${forged.state}x`)).location, "/login?error=google_expired");
+  // Missing code.
+  const noCode = await start();
+  assert.equal((await noCode.b.get(`/api/auth/google/callback?state=${noCode.state}`)).location, "/login?error=google_expired");
+  // Older than 10 minutes.
+  const slow = await start();
+  clock.advance(10 * MIN + 1);
+  assert.equal((await slow.b.get(`/api/auth/google/callback?code=c&state=${slow.state}`)).location, "/login?error=google_expired");
+  // A tampered cookie.
+  const tampered = await start();
+  tampered.b.jar.set("ic_google", "not-base64-json");
+  assert.equal((await tampered.b.get(`/api/auth/google/callback?code=c&state=${tampered.state}`)).location, "/login?error=google_expired");
+  assert.equal(google.requests.length, calls, "Google was never asked to exchange a code");
+  // Replay: the same return link a second time, after a successful sign-in.
+  const ok = await start();
+  person = { sub: "replay-1", email: "replay@example.com" };
+  pendingNonce = ok.nonce;
+  const link = `/api/auth/google/callback?code=c1&state=${ok.state}`;
+  assert.equal((await ok.b.get(link)).location, "/kits");
+  const replay = browser(app.origin);
+  assert.equal((await replay.get(link)).location, "/login?error=google_expired");
+  assert.equal(replay.jar.has("ic_session"), false);
+});
+
+test("Google being down or answering strangely ends on sign-in with the unavailable message, and is logged", async () => {
+  answer = () => new Response("{}", { status: 500 });
+  try {
+    const { res, b } = await signIn({ sub: "down-1", email: "down@example.com" });
+    assert.equal(res.location, "/login?error=google_unavailable");
+    assert.equal(b.jar.has("ic_session"), false);
+    const line = logged.find((l) => l.startsWith("google sign-in unavailable"));
+    assert.match(line, /id=[\w-]+: token endpoint returned 500/);
+    assert.ok(!/code=|code-/.test(line), "the one-time code is never logged");
+  } finally {
+    answer = null;
+  }
+  // A token minted for another sign-in (wrong nonce) is just as unusable.
+  const trip = await start();
+  person = { sub: "nonce-1", email: "nonce@example.com" };
+  pendingNonce = "someone-elses-nonce";
+  assert.equal((await trip.b.get(`/api/auth/google/callback?code=c&state=${trip.state}`)).location, "/login?error=google_unavailable");
+});
+
+test("two sign-ins racing for the same new person end in one account", async () => {
+  const models = createModels(testDb.db);
+  const auth = createAuthService({ users: models.users, sessions: createSessionService({ sessions: models.sessions, now: clock.now }), now: clock.now });
+  const who = { sub: "race-1", email: "race@example.com", name: "" };
+  const results = await Promise.all([auth.googleSignIn(who), auth.googleSignIn(who), auth.googleSignIn(who)]);
+  assert.equal(new Set(results.map((r) => String(r.user._id))).size, 1, "every racer got the same account");
+  assert.equal(await users().countDocuments({ email: "race@example.com" }), 1);
+});
+
+test("password sign-in for a Google-only account takes the dummy-check path and says the usual thing", async () => {
+  await signIn({ sub: "only-1", email: "only.google@example.com" });
+  const res = await browser(app.origin).post("/api/auth/login", { email: "only.google@example.com", password: "anything at all" });
+  assert.equal(res.status, 401);
+  assert.equal(res.body.error.code, "INVALID_CREDENTIALS");
+  assert.equal(res.body.error.message, "Email or password is incorrect.");
+  // Timing: a Google-only email must cost a full password check, like a password
+  // account with a wrong password, or response times would reveal which emails
+  // have Google accounts. scrypt
+  // takes tens of milliseconds; skipping it takes about one.
+  const timed = async (email) => {
+    const started = performance.now();
+    await browser(app.origin).post("/api/auth/login", { email, password: "anything at all" });
+    return performance.now() - started;
+  };
+  const median = async (email) => {
+    const times = [];
+    for (let i = 0; i < 3; i += 1) times.push(await timed(email)); // one at a time: concurrency would blur it
+    return times.sort((a, b) => a - b)[1];
+  };
+  const googleOnly = await median("only.google@example.com");
+  await browser(app.origin).post("/api/auth/register", { email: "has.password@example.com", password: PASSWORD });
+  const wrongPassword = await median("has.password@example.com");
+  assert.ok(googleOnly > wrongPassword * 0.4, `Google-only ${googleOnly.toFixed(1)} ms vs wrong password ${wrongPassword.toFixed(1)} ms`);
+});

@@ -1,4 +1,5 @@
-import { loadConfig, productionProblems } from "./config/index.js";
+import { loadConfig, productionProblems, googleEnabled } from "./config/index.js";
+import { createGoogleClient } from "./lib/google.js";
 import { connectDb } from "./config/database.js";
 import { createApp } from "./app.js";
 import { createJobRunner } from "./services/job.service.js";
@@ -27,6 +28,10 @@ const interrupted = await jobs.recoverOnBoot();
 if (interrupted > 0) console.log(`marked ${interrupted} unfinished generation(s) as interrupted`);
 
 const coach = { llm: pipelineDeps.llm, model: pipelineDeps.models.fast };
-createApp({ db, jobs, coach, production: config.production, trustProxyHops: config.trustProxyHops }).listen(config.port, () => {
+// Google sign-in is off (the button hidden) unless all three settings exist (D22).
+const google = googleEnabled(config)
+  ? createGoogleClient({ ...config.google, redirectUri: `${config.appOrigin}/api/auth/google/callback` })
+  : null;
+createApp({ db, jobs, coach, google, production: config.production, trustProxyHops: config.trustProxyHops }).listen(config.port, () => {
   console.log(`api listening on http://localhost:${config.port}`);
 });

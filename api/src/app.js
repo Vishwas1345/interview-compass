@@ -27,7 +27,8 @@ import { accountRoutes } from "./routes/account.routes.js";
 // jobs: the generation runner (services/job.service.js), built by the caller so the
 // server and the tests choose the pipeline dependencies; coach: { llm, model }.
 // trustProxyHops: proxies in front of the API (req.ip must be the real client, D19).
-export function createApp({ db, jobs, coach, production = false, trustProxyHops = 1, now = () => new Date(), log = console.error } = {}) {
+// google: the Google sign-in client (lib/google.js), or null when not configured.
+export function createApp({ db, jobs, coach, google = null, production = false, trustProxyHops = 1, now = () => new Date(), log = console.error } = {}) {
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", trustProxyHops);
@@ -44,7 +45,7 @@ export function createApp({ db, jobs, coach, production = false, trustProxyHops 
     const models = createModels(db);
     const sessions = createSessionService({ sessions: models.sessions, now });
     const services = {
-      auth: createAuthService({ users: models.users, now }),
+      auth: createAuthService({ users: models.users, sessions, now }),
       account: createAccountService({ users: models.users, kits: models.kits, sessions }),
       profile: createProfileService({ users: models.users, now }),
       kits: createKitService({ kits: models.kits, users: models.users, jobs, coach, now }),
@@ -53,7 +54,7 @@ export function createApp({ db, jobs, coach, production = false, trustProxyHops 
 
     app.use("/api", requireJson);
     const throttle = createAuthThrottle({ now });
-    app.use("/api/auth", authRoutes({ controller: createAuthController({ auth: services.auth, sessions, throttle, production }), requireUser: signedIn }));
+    app.use("/api/auth", authRoutes({ controller: createAuthController({ auth: services.auth, sessions, throttle, google, production, now, log }), requireUser: signedIn }));
     app.use("/api/kits", signedIn, kitRoutes({ controller: createKitController({ kits: services.kits }) }));
     app.use("/api/profile", signedIn, profileRoutes({ controller: createProfileController({ profile: services.profile }) }));
     app.use("/api/account", signedIn, accountRoutes({ controller: createAccountController({ account: services.account, production }) }));
