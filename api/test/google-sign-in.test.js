@@ -225,3 +225,50 @@ test("password sign-in for a Google-only account takes the dummy-check path and 
   const wrongPassword = await median("has.password@example.com");
   assert.ok(googleOnly > wrongPassword * 0.4, `Google-only ${googleOnly.toFixed(1)} ms vs wrong password ${wrongPassword.toFixed(1)} ms`);
 });
+
+// --- accounts without a password (phase 3) ------------------------------------
+
+test("/me says how the account signs in", async () => {
+  const google = await signIn({ sub: "method-1", email: "method.google@example.com" });
+  assert.equal((await google.b.get("/api/auth/me")).body.user.signInMethod, "google");
+  const pw = browser(app.origin);
+  await pw.post("/api/auth/register", { email: "method.password@example.com", password: PASSWORD });
+  assert.equal((await pw.get("/api/auth/me")).body.user.signInMethod, "password");
+});
+
+test("a Google account cannot change its email or password here: both belong to Google", async () => {
+  const { b } = await signIn({ sub: "managed-1", email: "managed@example.com" });
+  const email = await b.post("/api/account/email", { email: "other@example.com", currentPassword: "anything" });
+  assert.equal(email.status, 409);
+  assert.equal(email.body.error.code, "GOOGLE_ACCOUNT");
+  assert.match(email.body.error.message, /email is managed by Google/);
+  const password = await b.post("/api/account/password", { currentPassword: "anything", newPassword: "a brand new password" });
+  assert.equal(password.status, 409);
+  assert.match(password.body.error.message, /password is managed by Google/);
+  const stored = await users().findOne({ googleId: "managed-1" });
+  assert.equal(stored.email, "managed@example.com");
+  assert.equal(stored.passwordHash, undefined, "no password was set behind Google's back");
+});
+
+test("a Google account is deleted by typing its email; anything else is refused", async () => {
+  const { b } = await signIn({ sub: "delete-1", email: "delete.me@example.com" });
+  for (const body of [{}, { confirmEmail: "someone@example.com" }, { password: "a guess" }]) {
+    const res = await b.post("/api/account/delete", body);
+    assert.equal(res.status, 400, JSON.stringify(body));
+    assert.equal(res.body.error.code, "CONFIRM_EMAIL");
+  }
+  assert.equal(await users().countDocuments({ googleId: "delete-1" }), 1, "still there");
+  assert.equal((await b.post("/api/account/delete", { confirmEmail: "  Delete.Me@example.com " })).status, 204);
+  assert.equal(await users().countDocuments({ googleId: "delete-1" }), 0);
+  assert.equal((await b.get("/api/auth/me")).status, 401);
+});
+
+test("a password account still needs its password to delete; a typed email is not enough", async () => {
+  const b = browser(app.origin);
+  await b.post("/api/auth/register", { email: "keeps.password@example.com", password: PASSWORD });
+  const typed = await b.post("/api/account/delete", { confirmEmail: "keeps.password@example.com" });
+  assert.equal(typed.status, 400);
+  assert.equal(typed.body.error.message, "Enter your current password.");
+  assert.equal((await b.post("/api/account/delete", { password: "wrong" })).status, 401);
+  assert.equal((await b.post("/api/account/delete", { password: PASSWORD })).status, 204);
+});

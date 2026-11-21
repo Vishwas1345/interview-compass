@@ -8,6 +8,7 @@ export function publicUser(user) {
     name: user.profile?.name ?? "",
     jobTitle: user.profile?.jobTitle ?? "",
     photoVersion: user.photo ? new Date(user.photo.updatedAt).getTime() : null, // busts the image cache on change
+    signInMethod: user.googleId ? "google" : "password", // the profile page offers what fits (D22)
   };
 }
 
