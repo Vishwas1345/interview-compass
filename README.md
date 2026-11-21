@@ -247,6 +247,7 @@ Spec-driven, one phase at a time, with the agent skills in [`.claude/skills/`](.
 | [`write-spec`](.claude/skills/write-spec/SKILL.md) | The feature in plain words, with testable acceptance criteria | `docs/specs/*/SPEC.md` |
 | [`implementation-plan`](.claude/skills/implementation-plan/SKILL.md) | Endpoints, data, files and phases | phase plans (kept local, not committed) |
 | [`writing-for-agents`](.claude/skills/writing-for-agents/SKILL.md) | Documents agents read | [`AGENTS.md`](AGENTS.md), `CLAUDE.md` |
+| [`pre-deploy-review`](.claude/skills/pre-deploy-review/SKILL.md) | Before deploying: run the built-in `/code-review` and `/security-review` over the whole codebase, confirm, fix test-first, record | [`docs/REVIEWS.md`](docs/REVIEWS.md) |
 
 Before deploying, the whole codebase was reviewed with Claude Code's built-in skills:
 
