@@ -6,7 +6,7 @@ Turn a job description into an interview prep kit you can trust, edit and practi
 
 Paste a posting, give the company's website and the days until the interview. InterviewCompass reads the posting (quoting every requirement word for word), researches the company and its hiring process, and builds a kit: a company brief, the role's requirements, a question bank in four categories, flashcards and a day-by-day schedule. You then shape it (edit, reorder, pin; regenerating never overwrites your work) and practise it, weakest material first, with an answer coach.
 
-**Live:** _deployment link added after deploy (web on Vercel, API on Render)._
+**Live:** https://interview-compass.onrender.com (free hosting: the first visit after a quiet spell can take up to a minute while the services wake).
 
 ---
 
@@ -101,7 +101,7 @@ Groq's free limits are **per model** (about 8K tokens per minute each), so two m
 ## Architecture
 
 ```
-Browser ──► Next.js (Vercel) ──/api/* rewrite──► Express API (Render) ──► MongoDB (Atlas)
+Browser ──► Next.js (Render) ──/api/* rewrite──► Express API (Render) ──► MongoDB (Atlas)
                                                    │
                                                    ├─ routes → controllers → services → models     (D18)
                                                    │                ▲
@@ -188,7 +188,7 @@ Each decision, the alternatives and the reasoning are in [`docs/DECISIONS.md`](d
 | D5 | Groq with two models: two independent per-minute budgets |
 | D6, D7 | Retrieval by `fetch` + cheerio with links ranked in code; Tavily + Hacker News for discussion |
 | D8 | Edit state as a label on every item; regeneration is a merge, not an overwrite |
-| D9 | Vercel (web), Render (API), Atlas (database) |
+| D9, D21 | Render (web and API), Atlas (database) |
 | D10 | Server-side sessions in a first-party, httpOnly cookie through the web app's proxy |
 | D12 | Generation as a background job with checkpoints and resume |
 | D13 | Builder changes as typed operations applied by one pure function, with versioned saves |
@@ -226,7 +226,7 @@ Known limits: the web CSP has no script policy (L9); throttles live in one proce
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/ci.yml`, D20): every push and pull request runs install, lint, the 258 tests, a production build and a dependency audit. Pushes to `main` that pass are then deployed, the API to Render and the web app to Vercel, so only tested commits reach production. Dependabot proposes weekly updates, which go through the same checks. Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#deployment).
+GitHub Actions (`.github/workflows/ci.yml`, D20): every push and pull request runs install, lint, the 258 tests, a production build and a dependency audit. Pushes to `main` that pass are then deployed, both Render services (API and web) through their deploy hooks, so only tested commits reach production. Dependabot proposes weekly updates, which go through the same checks. Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#deployment).
 
 ## Testing
 

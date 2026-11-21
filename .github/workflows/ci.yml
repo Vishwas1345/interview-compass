@@ -1,8 +1,8 @@
 # CI and CD in one workflow (D20).
 # - ci: every push and pull request: install, lint, test, build the web app, audit.
 # - deploy: only for pushes to main, only after ci passed. It deploys the same commit
-#   to Render (API) and Vercel (web). Each half skips with a notice until its secrets
-#   exist, so CI is green before the hosting accounts are set up.
+#   to both Render services (API and web) through their deploy hooks (D21). Each
+#   half skips with a notice until its secret exists.
 name: CI
 
 on:
@@ -56,7 +56,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
   deploy:
-    name: Deploy to Render and Vercel
+    name: Deploy to Render (API and web)
     needs: ci
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -68,17 +68,8 @@ jobs:
     environment: production
     env:
       RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      RENDER_WEB_DEPLOY_HOOK_URL: ${{ secrets.RENDER_WEB_DEPLOY_HOOK_URL }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
       - name: API → Render (deploy hook)
         run: |
           if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
@@ -89,12 +80,11 @@ jobs:
           curl --fail --silent --show-error --max-time 30 -X POST "$RENDER_DEPLOY_HOOK_URL" > /dev/null
           echo "Render deploy triggered for ${GITHUB_SHA::7}."
 
-      - name: Web → Vercel (build here, deploy the prebuilt output)
+      - name: Web → Render (deploy hook)
         run: |
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "::notice::Vercel secrets are not set; skipping the web deploy."
+          if [ -z "$RENDER_WEB_DEPLOY_HOOK_URL" ]; then
+            echo "::notice::RENDER_WEB_DEPLOY_HOOK_URL is not set; skipping the web deploy."
             exit 0
           fi
-          npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
-          npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
-          npx --yes vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+          curl --fail --silent --show-error --max-time 30 -X POST "$RENDER_WEB_DEPLOY_HOOK_URL" > /dev/null
+          echo "Render web deploy triggered for ${GITHUB_SHA::7}."

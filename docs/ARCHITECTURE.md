@@ -135,17 +135,20 @@ Next.js 16 App Router (`web/src/app`), JavaScript, Tailwind 4, no component or s
 
 ## Deployment
 
-Hosting (D9): web on Vercel, API on Render (free web service), MongoDB on Atlas M0.
+Hosting (D9, D21): web and API as two Render free web services, MongoDB on Atlas M0.
+
+- Web: https://interview-compass.onrender.com
+- API: https://interview-compass-api.onrender.com
 
 **CI/CD (D20)**, in `.github/workflows/ci.yml`:
 
 ```
 push / pull request ──► ci: npm ci → lint → test (258) → build web → npm audit
                               │
-push to main, ci green ───────┴──► deploy: Render deploy hook (API) + Vercel CLI build & deploy (web)
+push to main, ci green ───────┴──► deploy: Render deploy hooks (API, web)
 ```
 
-- Deploys ship only commits that passed CI; Vercel's Git deploys are off (`web/vercel.json`) and Render's auto-deploy is off in its dashboard.
-- Secrets (GitHub → Settings → Secrets → Actions): `RENDER_DEPLOY_HOOK_URL`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`. Until set, each deploy step skips with a notice.
-- Production environment variables. Render: `NODE_ENV=production`, `MONGODB_URI`, `LLM_API_KEY`, `TAVILY_API_KEY`, `TRUST_PROXY_HOPS=2` (the server refuses to start if a required one is missing, D19). Vercel: `API_ORIGIN` (the Render URL; read at build time).
+- Deploys ship only commits that passed CI: auto-deploy is off on both Render services.
+- Secrets (GitHub → Settings → Secrets → Actions): `RENDER_DEPLOY_HOOK_URL`, `RENDER_WEB_DEPLOY_HOOK_URL`. Until set, each deploy step skips with a notice.
+- Production environment variables. Render: `NODE_ENV=production`, `MONGODB_URI`, `LLM_API_KEY`, `TAVILY_API_KEY`, `TRUST_PROXY_HOPS=2` (the server refuses to start if a required one is missing, D19). Web service: `API_ORIGIN` (the API's URL; read at build time), `NODE_VERSION=22`, `MONGOMS_DISABLE_POSTINSTALL=1` (skips the test-only MongoDB download).
 - Dependabot opens weekly npm and Actions update PRs; CI tests them before merge.

@@ -126,6 +126,8 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 
 ## D9 — Hosting: Vercel (web), Render free (API), MongoDB Atlas M0 (database)
 
+> The web half is superseded by D21: both services run on Render.
+
 **Date:** 2026-11-20
 
 **Decision:** `web/` on Vercel's free plan; `api/` as a Render free web service (an always-on Node process); MongoDB Atlas free M0 cluster. Production sets `NODE_ENV=production` and `ALLOW_PRIVATE_URLS=false` (D6).
@@ -256,7 +258,7 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 - **Security headers**: on the API, `nosniff`, `X-Frame-Options: DENY`, `no-referrer`, `Cache-Control: no-store`, `CSP: default-src 'none'; frame-ancestors 'none'`, CORP same-site, and HSTS in production (file downloads keep their stricter headers). On the web app (`next.config.mjs`): framing denied, `nosniff`, a referrer and a permissions policy, HSTS, and a partial CSP (`frame-ancestors`, `base-uri`, `object-src`, `form-action`); no `X-Powered-By`.
 - **scrypt cost** N = 2^15, r = 8, p = 1 (was Node's default 2^14). The hash records its parameters (`scrypt$N=32768,r=8,p=1$salt$hash`); the old format still verifies and is upgraded at the next sign-in.
 - **Fail fast**: a production server refuses to start without `MONGODB_URI` or `LLM_API_KEY`, with `ALLOW_PRIVATE_URLS` on, or with a nonsensical `TRUST_PROXY_HOPS`.
-- **`TRUST_PROXY_HOPS`** sets how many proxies front the API, so `req.ip` is the real client (2 behind Vercel's rewrite and Render's proxy).
+- **`TRUST_PROXY_HOPS`** sets how many proxies front the API, so `req.ip` is the real client (2 in production: the web app's `/api/*` rewrite and Render's proxy, D21).
 
 **Considered:** account lockout; a global per-IP request limit; `helmet`; a full CSP with nonces; OWASP's N = 2^17; bcrypt.
 
@@ -270,6 +272,22 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 
 **Decision:** `.github/workflows/ci.yml` has two jobs. **ci** runs on every push and pull request: `npm ci`, lint, the full test suite (the throwaway MongoDB binary cached between runs), a production build of the web app, and `npm audit --omit=dev --audit-level=high`. **deploy** runs only for pushes to `main` and only after **ci** passed: it triggers the Render deploy hook (API) and builds and deploys the web app with the Vercel CLI, so both halves ship the commit that was tested. Each half skips with a notice until its secrets exist (`RENDER_DEPLOY_HOOK_URL`; `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`). Vercel's own Git deploys are off (`web/vercel.json`), and Render's auto-deploy is set to off in its dashboard. Workflows get read-only repository permissions; deploys never overlap; Dependabot opens weekly update PRs that CI must pass.
 
+> The deploy job's web half changed with D21: a second Render deploy hook instead of the Vercel CLI.
+
 **Considered:** Render's and Vercel's native Git integrations deploying every push to `main`.
 
 **Why:** Vercel's integration deploys whether or not the tests passed, so a red commit could reach production; deploying from the workflow makes "CI passed" the gate for both halves. Secrets live only in the deploy job, which runs only on `main` pushes, so a pull request (including one from a fork) cannot reach them. The batch command is not run in CI: it calls the paid model with real keys, and the pipeline is covered by the fake-model tests. **Cost we accept:** no per-PR preview deployments.
+
+---
+
+## D21 — Both services on Render; deploys by two deploy hooks
+
+**Date:** 2026-11-21
+
+**Decision:** the web app runs as a second Render free web service next to the API, in the same region: build `npm ci --include=dev && npm run build -w @interview-compass/web` from the repo root (the web app imports `shared`), start `npm start -w @interview-compass/web`, `API_ORIGIN` pointing at the API's Render URL. Auto-deploy is off on both services; the CI workflow's deploy job calls each service's deploy hook (`RENDER_DEPLOY_HOOK_URL`, `RENDER_WEB_DEPLOY_HOOK_URL`) after CI passes. `web/vercel.json` is removed. Live: web https://interview-compass.onrender.com, API https://interview-compass-api.onrender.com.
+
+**Considered:** Vercel for the web app (D9's plan); Render's own "deploy after CI checks pass" setting instead of hooks.
+
+**Why:** one platform and one dashboard for both halves, and one deploy mechanism (hooks) triggered from one job, so the API and the web app always ship the same tested commit. Nothing in the web app depends on Vercel: the `/api/*` rewrite runs in the Next.js server on any host, and `onrender.com` is a public suffix, so the two services are still separate sites and the first-party cookie through the rewrite (D10) is still the right design.
+
+**Cost we accept:** the web service sleeps too, so a cold visit can wait for two wake-ups (up to about a minute); and both services draw on the workspace's shared 750 free hours a month (L11).
