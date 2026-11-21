@@ -1,5 +1,7 @@
 # InterviewCompass
 
+[![CI](https://github.com/Vishwas1345/interview-compass/actions/workflows/ci.yml/badge.svg)](https://github.com/Vishwas1345/interview-compass/actions/workflows/ci.yml)
+
 Turn a job description into an interview prep kit you can trust, edit and practise.
 
 Paste a posting, give the company's website and the days until the interview. InterviewCompass reads the posting (quoting every requirement word for word), researches the company and its hiring process, and builds a kit: a company brief, the role's requirements, a question bank in four categories, flashcards and a day-by-day schedule. You then shape it (edit, reorder, pin; regenerating never overwrites your work) and practise it, weakest material first, with an answer coach.
@@ -23,6 +25,7 @@ Paste a posting, give the company's website and the days until the interview. In
 - [Key decisions](#key-decisions)
 - [Trade-offs and known limitations](#trade-offs-and-known-limitations)
 - [Security](#security)
+- [CI/CD](#cicd)
 - [Testing](#testing)
 - [How this was built](#how-this-was-built)
 
@@ -220,6 +223,10 @@ Reviewed with `/security-review` and `/code-review` (see [How this was built](#h
 - **Operations:** a production server refuses to start misconfigured; `npm audit --omit=dev` reports 0 vulnerabilities.
 
 Known limits: the web CSP has no script policy (L9); throttles live in one process (L10).
+
+## CI/CD
+
+GitHub Actions (`.github/workflows/ci.yml`, D20): every push and pull request runs install, lint, the 258 tests, a production build and a dependency audit. Pushes to `main` that pass are then deployed, the API to Render and the web app to Vercel, so only tested commits reach production. Dependabot proposes weekly updates, which go through the same checks. Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#deployment).
 
 ## Testing
 

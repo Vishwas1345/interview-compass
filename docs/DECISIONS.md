@@ -261,3 +261,15 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 **Considered:** account lockout; a global per-IP request limit; `helmet`; a full CSP with nonces; OWASP's N = 2^17; bcrypt.
 
 **Why:** the public deployment makes the sign-in form the first target, and the app spec ruled out lockout (no reset flow to recover a locked account), so a temporary throttle keyed by email is the protection that does not lock real users out. A global per-IP limit would lump users together behind shared proxies and buys little over the per-user limits already in place (one generation at a time, 10 kits a day, 30 coach calls an hour). The headers are a handful of lines, so a dependency was not needed. A script-src CSP needs per-request nonces in Next.js (inline scripts), recorded as L9. N = 2^17 needs 128 MB per hash, which would exhaust a 512 MB free instance under a few concurrent sign-ins; 2^15 is 32 MB, and the recorded parameters let it rise later without breaking existing accounts.
+
+---
+
+## D20 — CI on GitHub Actions; deploys only after CI passes, from the same workflow
+
+**Date:** 2026-11-21
+
+**Decision:** `.github/workflows/ci.yml` has two jobs. **ci** runs on every push and pull request: `npm ci`, lint, the full test suite (the throwaway MongoDB binary cached between runs), a production build of the web app, and `npm audit --omit=dev --audit-level=high`. **deploy** runs only for pushes to `main` and only after **ci** passed: it triggers the Render deploy hook (API) and builds and deploys the web app with the Vercel CLI, so both halves ship the commit that was tested. Each half skips with a notice until its secrets exist (`RENDER_DEPLOY_HOOK_URL`; `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`). Vercel's own Git deploys are off (`web/vercel.json`), and Render's auto-deploy is set to off in its dashboard. Workflows get read-only repository permissions; deploys never overlap; Dependabot opens weekly update PRs that CI must pass.
+
+**Considered:** Render's and Vercel's native Git integrations deploying every push to `main`.
+
+**Why:** Vercel's integration deploys whether or not the tests passed, so a red commit could reach production; deploying from the workflow makes "CI passed" the gate for both halves. Secrets live only in the deploy job, which runs only on `main` pushes, so a pull request (including one from a fork) cannot reach them. The batch command is not run in CI: it calls the paid model with real keys, and the pipeline is covered by the fake-model tests. **Cost we accept:** no per-PR preview deployments.
