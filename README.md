@@ -4,13 +4,13 @@
 
 Turn a job description into an interview prep kit you can trust, edit and practise.
 
+<a href="docs/product-demo/walkthrough.webm"><img src="docs/product-demo/walkthrough-preview.png" alt="Watch the 3:41 walkthrough of InterviewCompass" width="100%"></a>
+
+<p align="center"><b><a href="docs/product-demo/walkthrough.webm">▶ Watch the walkthrough (3:41)</a></b>: recorded on the live app with on-screen captions. Kit creation, research and the gap-closing second pass, edit / pin / reorder / regenerate, the schedule, practice with the answer coach, and one defended decision.</p>
+
 Paste a posting, give the company's website and the days until the interview. InterviewCompass reads the posting (quoting every requirement word for word), researches the company and its hiring process, and builds a kit: a company brief, the role's requirements, a question bank in four categories, flashcards and a day-by-day schedule. You then shape it (edit, reorder, pin; regenerating never overwrites your work) and practise it, weakest material first, with an answer coach.
 
-**Walkthrough video (3:41):** [docs/product-demo/walkthrough.webm](docs/product-demo/walkthrough.webm), recorded on the live site with on-screen captions: kit creation, research and the gap-closing second pass, edit / pin / reorder / regenerate, schedule, practice with the answer coach, and one defended decision.
-
 **Live:** https://interview-compass.onrender.com (free hosting: the first visit after a quiet spell can take up to a minute while the services wake).
-
-![A generated kit: summary, coverage and the question bank](docs/product-demo/screenshots/05-kit-questions.png)
 
 ---
 
