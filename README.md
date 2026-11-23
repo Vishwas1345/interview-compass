@@ -6,9 +6,11 @@ Turn a job description into an interview prep kit you can trust, edit and practi
 
 Paste a posting, give the company's website and the days until the interview. InterviewCompass reads the posting (quoting every requirement word for word), researches the company and its hiring process, and builds a kit: a company brief, the role's requirements, a question bank in four categories, flashcards and a day-by-day schedule. You then shape it (edit, reorder, pin; regenerating never overwrites your work) and practise it, weakest material first, with an answer coach.
 
+**Walkthrough video (3:41):** [docs/product-demo/walkthrough.webm](docs/product-demo/walkthrough.webm), recorded on the live site with on-screen captions: kit creation, research and the gap-closing second pass, edit / pin / reorder / regenerate, schedule, practice with the answer coach, and one defended decision.
+
 **Live:** https://interview-compass.onrender.com (free hosting: the first visit after a quiet spell can take up to a minute while the services wake).
 
-![A generated kit: summary, coverage and the question bank](docs/screenshots/05-kit-questions.png)
+![A generated kit: summary, coverage and the question bank](docs/product-demo/screenshots/05-kit-questions.png)
 
 ---
 
@@ -18,32 +20,32 @@ Captured from the app running locally against the bundled demo company site (`np
 
 <table>
 <tr>
-<td width="50%" valign="top"><a href="docs/screenshots/01-home.png"><img src="docs/screenshots/01-home.png" alt="Home"></a><br><b>Home</b>: What the app does, with a sample kit.</td>
-<td width="50%" valign="top"><a href="docs/screenshots/02-sign-up.png"><img src="docs/screenshots/02-sign-up.png" alt="Sign up"></a><br><b>Sign up</b>: Email and password, or Continue with Google.</td>
+<td width="50%" valign="top"><a href="docs/product-demo/screenshots/01-home.png"><img src="docs/product-demo/screenshots/01-home.png" alt="Home"></a><br><b>Home</b>: What the app does, with a sample kit.</td>
+<td width="50%" valign="top"><a href="docs/product-demo/screenshots/02-sign-up.png"><img src="docs/product-demo/screenshots/02-sign-up.png" alt="Sign up"></a><br><b>Sign up</b>: Email and password, or Continue with Google.</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><a href="docs/screenshots/03-new-kit.png"><img src="docs/screenshots/03-new-kit.png" alt="New kit"></a><br><b>New kit</b>: Paste the posting, the company website and the days you have.</td>
-<td width="50%" valign="top"><a href="docs/screenshots/04-generating.png"><img src="docs/screenshots/04-generating.png" alt="Building the kit"></a><br><b>Building the kit</b>: Each step as it runs: posting, company research, questions, coverage check.</td>
+<td width="50%" valign="top"><a href="docs/product-demo/screenshots/03-new-kit.png"><img src="docs/product-demo/screenshots/03-new-kit.png" alt="New kit"></a><br><b>New kit</b>: Paste the posting, the company website and the days you have.</td>
+<td width="50%" valign="top"><a href="docs/product-demo/screenshots/04-generating.png"><img src="docs/product-demo/screenshots/04-generating.png" alt="Building the kit"></a><br><b>Building the kit</b>: Each step as it runs: posting, company research, questions, coverage check.</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><a href="docs/screenshots/05-kit-questions.png"><img src="docs/screenshots/05-kit-questions.png" alt="Questions"></a><br><b>Questions</b>: The question bank by category; edit, reorder, pin, move or regenerate any item.</td>
-<td width="50%" valign="top"><a href="docs/screenshots/06-coverage.png"><img src="docs/screenshots/06-coverage.png" alt="Coverage"></a><br><b>Coverage</b>: Every must-have requirement and the questions that test it.</td>
+<td width="50%" valign="top"><a href="docs/product-demo/screenshots/05-kit-questions.png"><img src="docs/product-demo/screenshots/05-kit-questions.png" alt="Questions"></a><br><b>Questions</b>: The question bank by category; edit, reorder, pin, move or regenerate any item.</td>
+<td width="50%" valign="top"><a href="docs/product-demo/screenshots/06-coverage.png"><img src="docs/product-demo/screenshots/06-coverage.png" alt="Coverage"></a><br><b>Coverage</b>: Every must-have requirement and the questions that test it.</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><a href="docs/screenshots/07-flashcards.png"><img src="docs/screenshots/07-flashcards.png" alt="Flashcards"></a><br><b>Flashcards</b>: Short cues for recall, each tied to the requirements it covers.</td>
-<td width="50%" valign="top"><a href="docs/screenshots/08-schedule.png"><img src="docs/screenshots/08-schedule.png" alt="Schedule"></a><br><b>Schedule</b>: A day-by-day plan built in code, hardest and must-have material first.</td>
+<td width="50%" valign="top"><a href="docs/product-demo/screenshots/07-flashcards.png"><img src="docs/product-demo/screenshots/07-flashcards.png" alt="Flashcards"></a><br><b>Flashcards</b>: Short cues for recall, each tied to the requirements it covers.</td>
+<td width="50%" valign="top"><a href="docs/product-demo/screenshots/08-schedule.png"><img src="docs/product-demo/screenshots/08-schedule.png" alt="Schedule"></a><br><b>Schedule</b>: A day-by-day plan built in code, hardest and must-have material first.</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><a href="docs/screenshots/09-company-brief.png"><img src="docs/screenshots/09-company-brief.png" alt="Company brief"></a><br><b>Company brief</b>: Written only from the company's own pages, with the interview process and sources.</td>
-<td width="50%" valign="top"><a href="docs/screenshots/10-research.png"><img src="docs/screenshots/10-research.png" alt="Research"></a><br><b>Research</b>: What was found, what was not, and why each question category exists.</td>
+<td width="50%" valign="top"><a href="docs/product-demo/screenshots/09-company-brief.png"><img src="docs/product-demo/screenshots/09-company-brief.png" alt="Company brief"></a><br><b>Company brief</b>: Written only from the company's own pages, with the interview process and sources.</td>
+<td width="50%" valign="top"><a href="docs/product-demo/screenshots/10-research.png"><img src="docs/product-demo/screenshots/10-research.png" alt="Research"></a><br><b>Research</b>: What was found, what was not, and why each question category exists.</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><a href="docs/screenshots/11-job-description.png"><img src="docs/screenshots/11-job-description.png" alt="Job description"></a><br><b>Job description</b>: The posting with every requirement highlighted where it is quoted.</td>
-<td width="50%" valign="top"><a href="docs/screenshots/12-practice.png"><img src="docs/screenshots/12-practice.png" alt="Practice"></a><br><b>Practice</b>: One card at a time, weakest first, with the answer coach and progress per requirement.</td>
+<td width="50%" valign="top"><a href="docs/product-demo/screenshots/11-job-description.png"><img src="docs/product-demo/screenshots/11-job-description.png" alt="Job description"></a><br><b>Job description</b>: The posting with every requirement highlighted where it is quoted.</td>
+<td width="50%" valign="top"><a href="docs/product-demo/screenshots/12-practice.png"><img src="docs/product-demo/screenshots/12-practice.png" alt="Practice"></a><br><b>Practice</b>: One card at a time, weakest first, with the answer coach and progress per requirement.</td>
 </tr>
 <tr>
-<td width="50%" valign="top"><a href="docs/screenshots/13-my-kits.png"><img src="docs/screenshots/13-my-kits.png" alt="My kits"></a><br><b>My kits</b>: Every kit and its status.</td>
-<td width="50%" valign="top"><a href="docs/screenshots/14-profile.png"><img src="docs/screenshots/14-profile.png" alt="Profile"></a><br><b>Profile</b>: Photo, details and résumé, plus account settings.</td>
+<td width="50%" valign="top"><a href="docs/product-demo/screenshots/13-my-kits.png"><img src="docs/product-demo/screenshots/13-my-kits.png" alt="My kits"></a><br><b>My kits</b>: Every kit and its status.</td>
+<td width="50%" valign="top"><a href="docs/product-demo/screenshots/14-profile.png"><img src="docs/product-demo/screenshots/14-profile.png" alt="Profile"></a><br><b>Profile</b>: Photo, details and résumé, plus account settings.</td>
 </tr>
 </table>
 
