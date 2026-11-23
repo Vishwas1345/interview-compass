@@ -290,7 +290,7 @@ The OpenAI-compatible client keeps a switch to Gemini (or any compatible provide
 
 **Why:** one platform and one dashboard for both halves, and one deploy mechanism (hooks) triggered from one job, so the API and the web app always ship the same tested commit. Nothing in the web app depends on Vercel: the `/api/*` rewrite runs in the Next.js server on any host, and `onrender.com` is a public suffix, so the two services are still separate sites and the first-party cookie through the rewrite (D10) is still the right design.
 
-**Cost we accept:** the web service sleeps too, so a cold visit can wait for two wake-ups (up to about a minute); and both services draw on the workspace's shared 750 free hours a month (L11).
+**Cost we accept:** the web service sleeps too; and both services draw on the workspace's shared 750 free hours a month (L11). To avoid waiting for two wake-ups in a row, the web server nudges the API's health check the moment it starts (`web/src/instrumentation.js`, not awaited), so both wake in parallel. A scheduled keep-alive was rejected: two always-on services need about 1,490 hours a month, twice the shared pool, and running it out suspends every free service in the workspace.
 
 ---
 
